@@ -1,0 +1,42 @@
+# Build output (exe, generated assets, embedded overlay DLL copy)
+build/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.obj
+*.o
+*.res
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs and test output
+*.log
+test/*.json
+
+# User settings and game files (never part of the source)
+*.ini
+SnowLauncher*.ini
+card.ini
+config.ini
+lmnfig.ini
+
+# Secrets
+*.env
+.env*
+*.pem
+*.key
+*.pfx
+token*.txt
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

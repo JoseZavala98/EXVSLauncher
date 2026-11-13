@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EXVS Launcher</title>
+<style>
+:root {
+  --bg: #07090f; --panel: rgba(16, 20, 32, 0.78); --line: rgba(120, 150, 210, 0.16); --line-strong: rgba(120, 160, 230, 0.32);
+  --text: #e6ecf8; --muted: #8a97b3; --dim: #5d6984;
+  --accent: #2f8cff; --accent-hi: #5aa6ff; --accent-glow: rgba(47, 140, 255, 0.45);
+  --red: #ff3d55; --green: #2fd98b; --amber: #ffb547;
+  --radius: 10px; --head: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", "Yu Gothic UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+  font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Yu Gothic UI", sans-serif; user-select: none; }
+button, input, select { font: inherit; color: inherit; }
+::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-thumb { background: #232b40; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+
+/* ---------- layout ---------- */
+.app { display: grid; grid-template-columns: 76px 1fr; height: 100vh; }
+.nav { background: linear-gradient(180deg, #0b0f19, #080a11); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 6px; }
+.logo { width: 50px; height: 50px; margin-bottom: 12px; filter: drop-shadow(0 0 10px var(--accent-glow)); }
+.logo svg, .brand svg { width: 100%; height: 100%; display: block; }
+.brand { position: absolute; top: 20px; left: 26px; display: flex; align-items: center; gap: 12px; font: 600 15px var(--head); letter-spacing: 3px; color: #c9d4ea; }
+.brand .em { width: 40px; height: 40px; filter: drop-shadow(0 0 10px var(--accent-glow)); }
+.brand b { color: var(--accent-hi); font-weight: 600; }
+.brand i { color: var(--red); font-style: normal; }
+.nav button { width: 58px; height: 56px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10.5px; letter-spacing: 0.3px; position: relative; transition: .15s; }
+.nav button svg { width: 22px; height: 22px; }
+.nav button:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav button.active { color: #fff; background: rgba(47,140,255,0.14); }
+.nav button.active::before { content: ""; position: absolute; left: -9px; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.nav .spacer { flex: 1; }
+.main { position: relative; overflow: hidden; }
+.page { position: absolute; inset: 0; display: none; overflow-y: auto; padding: 28px 34px 34px; }
+.page.active { display: block; animation: fade .18s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+h1 { font: 600 26px var(--head); margin: 0 0 4px; letter-spacing: 0.4px; }
+.sub { color: var(--muted); margin: 0 0 22px; }
+h2 { font: 600 13px var(--head); text-transform: uppercase; letter-spacing: 1.6px; color: var(--accent-hi); margin: 0 0 14px; }
+
+/* ---------- generic controls ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 8px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 40px; padding: 4px 0 10px; }
+.row + .row { border-top: 1px solid rgba(255,255,255,0.04); padding-top: 10px; }
+.row .hint { display: block; color: var(--dim); font-size: 12px; }
+.ctl { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
+input[type=text], input[type=password], select { background: #0b0f19; border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 10px; min-width: 190px; outline: none; transition: .15s; }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,140,255,0.18); }
+select option { background: #0b0f19; }
+.switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span { position: absolute; inset: 0; border-radius: 24px; background: #252d42; transition: .18s; cursor: pointer; }
+.switch span::after { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: #c7d0e4; transition: .18s; }
+.switch input:checked + span { background: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+.switch input:checked + span::after { transform: translateX(18px); background: #fff; }
+.btn { border: 1px solid var(--line-strong); background: #141a2a; padding: 8px 14px; border-radius: 8px; cursor: pointer; transition: .15s; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); background: #18223a; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.danger { border-color: rgba(255,61,85,0.5); color: #ffb3bd; }
+.btn.danger:hover { background: rgba(255,61,85,0.15); border-color: var(--red); }
+.btn.big { padding: 12px 22px; font: 600 15px var(--head); letter-spacing: 1px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.seg { display: inline-flex; background: rgba(10,14,24,0.8); border: 1px solid var(--line-strong); border-radius: 9px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 6px 13px; border-radius: 6px; color: var(--muted); cursor: pointer; }
+.seg button.on { background: var(--accent); color: #fff; }
+.tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.tabs button { border: 1px solid var(--line); background: transparent; color: var(--muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+.tabs button.on { color: #fff; border-color: var(--accent); background: rgba(47,140,255,0.13); }
+.pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(47,140,255,0.15); color: var(--accent-hi); margin-left: 8px; letter-spacing: 0.5px; }
+.pill.off { background: rgba(255,255,255,0.06); color: var(--dim); }
+.muted { color: var(--muted); }
+
+/* ---------- play page ---------- */
+#page-play { padding: 0; }
+.hero { position: absolute; inset: 0; background: #05070c center/cover no-repeat; }
+.hero::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(5,7,12,0.92) 0%, rgba(5,7,12,0.55) 45%, rgba(5,7,12,0.15) 100%), linear-gradient(0deg, rgba(5,7,12,0.95) 0%, rgba(5,7,12,0) 45%); }
+.hero.default { background-image: radial-gradient(ellipse at 70% 30%, rgba(47,140,255,0.28), transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(255,61,85,0.18), transparent 50%),
+  linear-gradient(rgba(90,130,210,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(90,130,210,0.07) 1px, transparent 1px);
+  background-size: auto, auto, 38px 38px, 38px 38px; }
+.play-wrap { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 44px 40px; }
+.status-bar { position: absolute; top: 22px; right: 26px; display: flex; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 20px; background: rgba(10,14,24,0.72); border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); backdrop-filter: blur(8px); }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: #48526a; }
+.chip.on { color: var(--text); } .chip.on i { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.chip.warn i { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.eyebrow { font: 600 12px var(--head); letter-spacing: 3px; text-transform: uppercase; color: var(--accent-hi); }
+.title { font: 700 46px/1.02 var(--head); letter-spacing: 0.5px; margin: 8px 0 6px; text-shadow: 0 4px 30px rgba(0,0,0,0.6); }
+.title span { color: var(--red); }
+.tagline { color: #b7c2da; margin-bottom: 26px; max-width: 520px; }
+.play-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.play-btn { height: 64px; min-width: 250px; padding: 0 34px; border: 0; border-radius: 12px; cursor: pointer; background: linear-gradient(135deg, #2f8cff, #1d5fd1); color: #fff;
+  font: 700 24px var(--head); letter-spacing: 3px; box-shadow: 0 10px 34px rgba(47,140,255,0.45), inset 0 1px 0 rgba(255,255,255,0.25); transition: .15s; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.play-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 40px rgba(47,140,255,0.6), inset 0 1px 0 rgba(255,255,255,0.25); }
+.play-btn svg { width: 22px; height: 22px; }
+.play-btn.running { background: linear-gradient(135deg, #ff3d55, #c41f39); box-shadow: 0 10px 34px rgba(255,61,85,0.4); }
+.play-btn:disabled { filter: grayscale(0.6) brightness(0.8); cursor: default; transform: none; }
+.quick { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+.quick .q { background: rgba(10,14,24,0.72); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(8px); min-width: 160px; cursor: pointer; transition: .15s; }
+.quick .q:hover { border-color: var(--line-strong); background: rgba(16,22,38,0.85); }
+.quick .q small { display: block; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px; }
+.ov-banner { display: inline-flex; align-items: center; gap: 12px; margin-top: 16px; padding: 8px 10px 8px 14px; border-radius: 10px; max-width: 720px;
+  background: rgba(10,14,24,0.8); border: 1px solid rgba(47,140,255,0.45); backdrop-filter: blur(8px); color: #cfd9ee; font-size: 13.5px; }
+.ov-banner .ov-ico { color: var(--accent-hi); }
+.ov-banner .btn { padding: 6px 14px; }
+.ov-x { border: 0; background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; padding: 4px 6px; }
+.ov-x:hover { color: var(--text); }
+.busy { margin-top: 14px; color: var(--amber); min-height: 20px; font-size: 13px; }
+
+/* ---------- settings: game-menu style ---------- */
+#page-settings { padding: 0; display: none; }
+#page-settings.active { display: flex; flex-direction: column; }
+.set-head { padding: 24px 34px 0; background: linear-gradient(180deg, rgba(47,140,255,0.08), transparent); }
+.set-head h1 { font-size: 30px; letter-spacing: 2px; text-transform: uppercase; }
+.cats { display: flex; align-items: flex-end; gap: 4px; margin-top: 14px; border-bottom: 1px solid var(--line); }
+.cats .bump { font: 600 11px var(--head); color: var(--dim); border: 1px solid var(--line-strong); border-radius: 5px; padding: 1px 6px; margin: 0 10px 12px; cursor: pointer; }
+.cats button { border: 0; background: transparent; color: var(--muted); padding: 10px 16px 12px; cursor: pointer; font: 600 14px var(--head); letter-spacing: 1.6px; text-transform: uppercase; position: relative; }
+.cats button:hover { color: var(--text); }
+.cats button.on { color: #fff; }
+.cats button.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.set-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 26px; padding: 18px 34px 0; min-height: 0; }
+.opts { overflow-y: auto; padding: 2px 8px 24px 0; }
+.opt-sec { font: 600 12px var(--head); letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin: 18px 0 8px 4px; }
+.opt-sec:first-child { margin-top: 2px; }
+.opt { display: grid; grid-template-columns: 1fr 300px; align-items: center; gap: 16px; min-height: 52px; padding: 6px 8px 6px 18px; margin-bottom: 4px;
+  border-radius: 8px; background: rgba(14,18,30,0.65); border: 1px solid transparent; position: relative; transition: background .12s, border-color .12s; }
+.opt::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: transparent; transition: .12s; }
+.opt.focus { background: linear-gradient(90deg, rgba(47,140,255,0.16), rgba(47,140,255,0.04)); border-color: rgba(47,140,255,0.35); }
+.opt.focus::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.opt.disabled { opacity: 0.45; }
+.opt .lbl { font-size: 15px; }
+.opt .lbl small { display: block; font-size: 12px; color: var(--dim); }
+.cyc { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; height: 38px; background: rgba(5,7,12,0.6); border: 1px solid var(--line); border-radius: 7px; }
+.cyc button { height: 100%; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; border-radius: 6px; }
+.cyc button:hover { color: #fff; background: rgba(47,140,255,0.18); }
+.cyc .val { text-align: center; font: 600 14px var(--head); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cyc .dots { display: flex; justify-content: center; gap: 3px; margin-top: 3px; }
+.cyc .dots i { width: 14px; height: 2px; border-radius: 2px; background: #2a3350; }
+.cyc .dots i.on { background: var(--accent); }
+.onoff { display: grid; grid-template-columns: 1fr 1fr; height: 38px; background: rgba(5,7,12,0.6); border: 1px solid var(--line); border-radius: 7px; padding: 3px; gap: 3px; }
+.onoff button { border: 0; border-radius: 5px; background: transparent; color: var(--dim); cursor: pointer; font: 600 13px var(--head); letter-spacing: 1.5px; }
+.onoff button.on { background: var(--accent); color: #fff; box-shadow: 0 0 12px var(--accent-glow); }
+.opt input[type=text], .opt input[type=password], .opt select { width: 100%; min-width: 0; height: 38px; background: rgba(5,7,12,0.6); border-color: var(--line); }
+.opt .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.opt .acts .btn { flex: 1; }
+.info { align-self: start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-top: 2px; }
+.info .k { font: 600 11px var(--head); letter-spacing: 2px; text-transform: uppercase; color: var(--accent-hi); }
+.info h3 { font: 600 20px var(--head); margin: 6px 0 10px; }
+.info p { color: #aab5cc; margin: 0 0 12px; }
+.info .rec { color: var(--green); font-size: 13px; }
+.info .warn { color: var(--amber); font-size: 13px; }
+.screen { margin-top: 14px; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--line-strong); position: relative; overflow: hidden;
+  background: linear-gradient(rgba(90,130,210,0.08) 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(90deg, rgba(90,130,210,0.08) 1px, transparent 1px) 0 0 / 16px 16px, #070a12; }
+.screen .win { position: absolute; border: 2px solid var(--accent); background: rgba(47,140,255,0.18); border-radius: 3px; display: grid; place-items: center; font: 600 11px var(--head); color: #cfe2ff; transition: .25s; }
+.screen .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 9%; background: rgba(255,255,255,0.08); }
+.set-foot { display: flex; align-items: center; gap: 18px; padding: 12px 34px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12.5px; background: rgba(5,7,12,0.6); }
+.set-foot kbd { font: 600 11px var(--head); color: var(--muted); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; margin-right: 5px; }
+.set-foot .saved { margin-left: auto; color: var(--green); opacity: 0; transition: .3s; }
+.set-foot .saved.show { opacity: 1; }
+
+/* ---------- controls ---------- */
+.keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.key { display: flex; align-items: center; justify-content: space-between; background: rgba(14,18,30,0.65); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 8px 12px; }
+.key span { color: var(--muted); font-size: 13px; }
+.cap { min-width: 70px; text-align: center; padding: 5px 10px; border-radius: 7px; cursor: pointer; background: #1a2135; border: 1px solid var(--line-strong); border-bottom-width: 3px; font: 600 13px var(--head); letter-spacing: 0.4px; transition: .12s; }
+.cap:hover { border-color: var(--accent); }
+.cap.listening { border-color: var(--amber); color: var(--amber); animation: pulse 1s infinite; }
+.cap.empty { color: var(--dim); font-weight: 400; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px rgba(255,181,71,0.15); } }
+
+/* ---------- online / mods ---------- */
+.console { background: #05070c; border: 1px solid var(--line); border-radius: 9px; height: 210px; overflow-y: auto; padding: 10px 12px; font: 12px/1.5 Consolas, "Cascadia Mono", monospace; color: #9fb0cf; user-select: text; white-space: pre-wrap; }
+.console .ok { color: var(--green); } .console .err { color: #ff8796; }
+.foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.mods-hero { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-strong); padding: 30px 32px; margin-bottom: 16px;
+  background: radial-gradient(ellipse at 90% 0%, rgba(255,61,85,0.22), transparent 55%), radial-gradient(ellipse at 10% 100%, rgba(47,140,255,0.25), transparent 60%), #0b0f1a; }
+.mods-hero h2 { margin-bottom: 6px; }
+.mods-hero .t { font: 700 30px var(--head); letter-spacing: 1px; margin-bottom: 8px; }
+.mods-hero p { color: #b7c2da; max-width: 560px; margin: 0 0 20px; }
+.feat { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.feat div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; color: var(--muted); font-size: 13px; }
+.feat b { display: block; color: var(--text); font: 600 14px var(--head); margin-bottom: 4px; letter-spacing: 0.4px; }
+
+/* ---------- controller navigation ---------- */
+.gp { outline: 2px solid var(--accent-hi) !important; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(47,140,255,0.18), 0 0 18px var(--accent-glow) !important; border-radius: 8px; }
+.pad-only { display: none; }
+body.pad .pad-only { display: inline; }
+body.pad .kb-only { display: none; }
+.gb { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; font: 700 10.5px var(--head); color: #0a0d15; margin-right: 5px; vertical-align: 1px; }
+.gb.a { background: #5ad17a; } .gb.b { background: #ff6b6b; } .gb.x { background: #4aa3ff; } .gb.y { background: #ffcc4d; }
+.gb.sh { background: #c9d3e8; border-radius: 4px; }
+.pad-hint { position: absolute; right: 26px; bottom: 22px; color: #b7c2da; font-size: 12.5px; background: rgba(10,14,24,0.72); border: 1px solid var(--line); border-radius: 20px; padding: 6px 14px; display: none; }
+body.pad .pad-hint { display: block; }
+.credits { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(3,5,10,0.72); backdrop-filter: blur(6px); animation: fade .2s ease; }
+.cr-box { width: min(560px, 92vw); max-height: 88vh; overflow-y: auto; text-align: center; padding: 30px 34px 26px; border-radius: 16px;
+  background: linear-gradient(180deg, #121a2e, #0a0e18); border: 1px solid var(--line-strong); box-shadow: 0 20px 60px rgba(0,0,0,0.6); user-select: text; }
+.cr-mark { width: 72px; height: 72px; margin: 0 auto 12px; filter: drop-shadow(0 0 14px var(--accent-glow)); }
+.cr-mark svg { width: 100%; height: 100%; display: block; }
+.cr-title { font: 700 22px var(--head); letter-spacing: 4px; }
+.cr-ver { color: var(--dim); font-size: 12.5px; margin-bottom: 8px; }
+.cr-sec { font: 600 11px var(--head); letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent-hi); margin: 18px 0 6px; }
+.cr-name { font: 700 26px var(--head); letter-spacing: 1px; }
+.cr-box p { color: #aab5cc; margin: 4px 0; font-size: 13.5px; }
+.cr-box ul { list-style: none; padding: 0; margin: 0; color: #aab5cc; font-size: 13px; line-height: 1.8; }
+.cr-box b { color: var(--text); font-weight: 600; }
+.cr-legal { margin-top: 18px !important; font-size: 11.5px !important; color: var(--dim) !important; }
+.cr-box .btn { margin-top: 18px; min-width: 120px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0; background: #151c2e; border: 1px solid var(--line-strong); padding: 10px 18px; border-radius: 10px; transition: .25s; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 50; }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.toast.err { border-color: var(--red); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="nav">
+    <div class="logo" title="EXVS Launcher"><!--LOGO--></div>
+    <button data-page="play" class="active" title="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Play</button>
+    <button data-page="settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Settings</button>
+    <button data-page="online" title="Online"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>Online</button>
+    <button data-page="mods" title="Mods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>Mods</button>
+    <div class="spacer"></div>
+  </nav>
+
+  <main class="main">
+    <!-- PLAY -->
+    <section class="page active" id="page-play">
+      <div class="hero default" id="hero"></div>
+      <div class="brand"><div class="em"><!--LOGO--></div><span>EX<i>VS</i> <b>LAUNCHER</b></span></div>
+      <div class="status-bar">
+        <span class="chip" id="chip-game"><i></i>Game</span>
+        <span class="chip" id="chip-n2n"><i></i>N2N</span>
+        <span class="chip" id="chip-server"><i></i>Local server</span>
+      </div>
+      <div class="play-wrap">
+        <div class="eyebrow">Mobile Suit Gundam</div>
+        <div class="title">EXTREME VS. 2<br><span>INFINITE BOOST</span></div>
+        <div class="tagline" id="tagline">Ready to deploy.</div>
+        <div class="play-row">
+          <button class="play-btn" id="play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg><span>PLAY</span></button>
+          <div class="seg" id="mode-seg">
+            <button data-mode="client" class="on">Client</button>
+            <button data-mode="lm">Live Monitor</button>
+            <button data-mode="both">Client + LM</button>
+          </div>
+        </div>
+        <div class="quick">
+          <div class="q" data-goto="graphics"><small>Display</small><span id="q-display">—</span></div>
+          <div class="q" data-goto="graphics"><small>Resolution</small><span id="q-res">—</span></div>
+          <div class="q" data-goto="account"><small>Card</small><span id="q-card" class="muted">—</span></div>
+          <div class="q" data-goto="account"><small>Server</small><span id="q-server" class="muted">—</span></div>
+        </div>
+        <div class="ov-banner" id="ov-banner" style="display:none">
+          <span class="ov-ico">◆</span><span id="ov-text"></span><button class="btn primary" id="ov-btn"></button><button class="ov-x" id="ov-x" title="Hide">✕</button>
+        </div>
+        <div class="busy" id="busy"></div>
+      </div>
+      <div class="pad-hint"><span class="gb sh">START</span>Play &nbsp; <span class="gb x">X</span>Mode &nbsp; <span class="gb sh">LT</span><span class="gb sh">RT</span>Pages</div>
+    </section>
+
+    <!-- SETTINGS (game menu style) -->
+    <section class="page" id="page-settings">
+      <div class="set-head">
+        <h1>Settings</h1>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div class="set-body">
+        <div class="opts" id="opts"></div>
+        <aside class="info" id="info"></aside>
+      </div>
+      <div class="set-foot">
+        <span class="kb-only"><kbd>↑</kbd><kbd>↓</kbd>Select</span><span class="kb-only"><kbd>←</kbd><kbd>→</kbd>Change</span><span class="kb-only"><kbd>Q</kbd><kbd>E</kbd>Category</span>
+        <span class="pad-only"><span class="gb sh">↕</span>Select</span><span class="pad-only"><span class="gb sh">↔</span>Change</span><span class="pad-only"><span class="gb a">A</span>OK</span>
+        <span class="pad-only"><span class="gb b">B</span>Back</span><span class="pad-only"><span class="gb sh">LB</span><span class="gb sh">RB</span>Category</span><span class="pad-only"><span class="gb sh">LT</span><span class="gb sh">RT</span>Page</span>
+        <span class="saved" id="saved">✓ Saved</span>
+      </div>
+    </section>
+
+    <!-- ONLINE -->
+    <section class="page" id="page-online">
+      <h1>Online</h1>
+      <p class="sub">N2N virtual LAN to play with friends over the internet, and the local card server for offline play.</p>
+      <div class="grid">
+        <div class="card">
+          <h2>N2N virtual LAN <span class="pill off" id="n2n-pill">Disconnected</span></h2>
+          <div class="row"><label>Supernode<span class="hint">host:port given by your group</span></label><div class="ctl"><input type="text" data-k="n2n.host" placeholder="example.com:7654"></div></div>
+          <div class="row"><label>Community (room)</label><div class="ctl"><input type="text" data-k="n2n.community"></div></div>
+          <div class="row"><label>Player name</label><div class="ctl"><input type="text" data-k="n2n.playerName"></div></div>
+          <div class="row"><label>Fixed virtual IP<span class="hint">Off = assigned automatically</span></label><div class="ctl"><input type="text" style="min-width:0;width:130px" data-k="n2n.virtualIp" placeholder="10.0.0.x"><label class="switch"><input type="checkbox" id="n2n-static"><span></span></label></div></div>
+          <div class="row"><label>TAP adapter</label><div class="ctl"><select data-k="n2n.iface" class="iface-sel"></select></div></div>
+          <div class="row"><label>Always relay through supernode</label><div class="ctl"><label class="switch"><input type="checkbox" data-k="n2n.relay"><span></span></label></div></div>
+          <div class="row"><label>No port forwarding</label><div class="ctl"><label class="switch"><input type="checkbox" data-k="n2n.noPortForwarding"><span></span></label></div></div>
+          <div class="row"><label>Accept multicast</label><div class="ctl"><label class="switch"><input type="checkbox" data-k="n2n.multicast"><span></span></label></div></div>
+          <div class="row"><label>Extra edge parameters</label><div class="ctl"><input type="text" data-k="n2n.conf" placeholder="optional"></div></div>
+          <div class="foot" style="margin:6px 0 12px"><button class="btn danger" id="n2n-stop">Disconnect</button><button class="btn primary" id="n2n-start">Connect</button></div>
+        </div>
+        <div class="card">
+          <h2>Connection log</h2>
+          <div class="console" id="n2n-log"></div>
+          <div style="height:16px"></div>
+          <h2>Local card server <span class="pill off" id="server-pill">Stopped</span></h2>
+          <div class="row"><label>Runs Server.exe so you can play offline with the server set to 127.0.0.1:28080<span class="hint" id="server-path"></span></label></div>
+          <div class="foot" style="margin:0 0 12px"><button class="btn danger" id="server-stop">Stop</button><button class="btn primary" id="server-start">Start</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODS -->
+    <section class="page" id="page-mods">
+      <div class="mods-hero">
+        <h2>EXVSIB Mod Manager</h2>
+        <div class="t">Mods, units &amp; stages</div>
+        <p>Install and manage mods, translation, clone units, custom stages, sounds and online mod sync with your group. Opens in its own window.</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary big" id="mm-open">Open Mod Manager</button>
+          <button class="btn big" id="mm-sync">Sync online mods now</button>
+          <span class="muted" id="mm-status"></span>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="row" style="padding-top:0"><label>Sync online mods every time I press Play<span class="hint">Downloads your group's mods before the game starts (EXVSIB_Mod_Manager.exe --sync)</span></label><div class="ctl"><label class="switch"><input type="checkbox" data-k="app.syncMods" id="sync-mods"><span></span></label></div></div>
+      </div>
+      <div class="feat">
+        <div><b>Mod library</b>Turn mods on and off without touching game files by hand.</div>
+        <div><b>Units</b>Clone units, swap movesets, voices and sounds.</div>
+        <div><b>Stages</b>Add custom stages and change the stage order.</div>
+        <div><b>Online sync</b>Everyone in the group plays with the same mods.</div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="credits" id="credits" style="display:none">
+  <div class="cr-box">
+    <div class="cr-mark"><!--LOGO--></div>
+    <div class="cr-title">EXVS LAUNCHER</div>
+    <div class="cr-ver" id="cr-ver"></div>
+    <div class="cr-sec">Created by</div>
+    <div class="cr-name">Furshow</div>
+    <div class="cr-sec">Includes</div>
+    <p><b>EXVS Overlay</b> — in-game menu, FPS counter, controller overlay and window fix, also by Furshow.</p>
+    <div class="cr-sec">Open source</div>
+    <ul>
+      <li><b>webview</b> — MIT License, © Serge Zaitsev and contributors</li>
+      <li><b>Microsoft Edge WebView2</b> — Microsoft Corporation</li>
+      <li><b>JSON for Modern C++</b> — MIT License, © Niels Lohmann</li>
+      <li><b>Dear ImGui</b> (overlay) — MIT License, © Omar Cornut</li>
+      <li><b>HideUI</b> (overlay, hide battle HUD) — MIT License, © 2026 EXVS2OB-BGMTool contributors</li>
+      <li><b>AMD FidelityFX Super Resolution 1</b> (overlay, upscaling) — MIT License, © 2021 Advanced Micro Devices, Inc.</li>
+      <li>Built with <b>Zig</b> / Clang</li>
+    </ul>
+    <div class="cr-sec">Thanks</div>
+    <p>SnowLauncher, whose settings this launcher keeps compatible, and the EXVS community.</p>
+    <p class="cr-legal">Fan-made tool, free and non-commercial. Not affiliated with or endorsed by Bandai Namco or Sunrise. Mobile Suit Gundam and Extreme VS. 2 Infinite Boost are trademarks of their respective owners.</p>
+    <button class="btn primary" id="cr-close">Close</button>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script>
+"use strict";
+// ================================================================ languages
+// Every visible text is English in the code and goes through t(); other languages are tables
+// {English: translation} in i18n.js (window.I18N). Missing entries fall back to English.
+const LANGS = [["en", "English"], ["es", "Español"], ["zh", "简体中文"], ["ja", "日本語"]];
+let LANG = "en";
+const I18N_SEEN = new Set();   // every key used, for finding untranslated texts (window.__i18nMissing())
+function t(s, vars) {
+  if (s == null || s === "") return s;
+  s = String(s);
+  I18N_SEEN.add(s);
+  let r = (LANG !== "en" && window.I18N && I18N[LANG] && I18N[LANG][s]) || s;
+  if (vars) r = r.replace(/\{(\w+)\}/g, (m, k) => (vars[k] ?? m));
+  return r;
+}
+window.__i18nMissing = lang => [...I18N_SEEN].filter(k => !(window.I18N && I18N[lang] && I18N[lang][k]) && /[A-Za-z]{2}/.test(k));
+const NO_I18N = "script, style, #opts, #info, #cats, #ctrl-body, #n2n-log, .iface-sel, #q-display, #q-res, #q-card, #q-server, #cr-ver, .cr-name, #ov-text, #toast, svg";
+function translateStatic() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.parentElement && n.parentElement.closest(NO_I18N)) continue;
+    if (n.__en === undefined) { if (!/[A-Za-z]/.test(n.nodeValue)) continue; n.__en = n.nodeValue; }
+    const m = n.__en.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    n.nodeValue = m[1] + t(m[2]) + m[3];
+  }
+  for (const el of document.querySelectorAll("[placeholder], [title]")) {
+    for (const a of ["placeholder", "title"]) {
+      if (!el.hasAttribute(a)) continue;
+      const key = "en" + a; if (el.dataset[key] === undefined) el.dataset[key] = el.getAttribute(a);
+      el.setAttribute(a, t(el.dataset[key]));
+    }
+  }
+}
+function systemLang() { const l = (navigator.language || "en").toLowerCase(); return l.startsWith("es") ? "es" : l.startsWith("zh") ? "zh" : l.startsWith("ja") ? "ja" : "en"; }
+function setLang(code) {
+  LANG = LANGS.some(l => l[0] === code) ? code : "en";
+  document.documentElement.lang = LANG;
+  translateStatic();
+  if (S) { renderCats(); renderOpts(); renderQuick(); renderOverlayBanner(); }
+}
+
+// ================================================================ backend bridge
+// Functions are bound by the native host (webview). In a normal browser a mock is used so the UI can be previewed.
+const HAS_HOST = typeof window.getState === "function";
+const mock = {
+  state: {
+    version: "1.1.0", gameDir: "C:\\Games\\EXVSIB", monitor: { w: 1920, h: 1080 },
+    files: { client: true, lm: true, edge: true, server: true, modManager: true, overlay: true, overlayStatus: "outdated", overlayVersion: "0.10.0" },
+    cfg: { chipId: "Player1", accessCode: "0000", serial: "XXXX", server: "https://card.gexvslt.com/", region: 40, openingSkip: 3, bootToken: "",
+      disableSocketHook: false, enableQuickSkinChange: true, framerateLimit: true, useRealCardReader: false, cardReaderComPort: "",
+      client: { window: 0, resolution: 2, iface: "Gundam", ipRun: false, ip: "192.168.1.10" }, lm: { window: 9, resolution: 2, iface: "Gundam", ipRun: false, ip: "" } },
+    keyboard: { client: { Enabled: "True", Up: "I", Down: "K", Left: "J", Right: "L", ButtonA: "A", ButtonB: "D", ButtonC: "S", ButtonD: "W", ButtonAB: "Q", ButtonBC: "Z", ButtonAC: "E", ButtonABC: "C", Coin: "1", Card: "F3", Kill: "F4", Start: "B", Test: "F2" },
+      lm: { Enabled: "True", Up: "UpArr", Down: "DownArr", Left: "LeftArr", Right: "RightArr", ButtonA: "Z", ButtonB: "X", ButtonC: "C", ButtonD: "V", Coin: "5", Card: "M", Kill: "F8", Start: "Q", Test: "F7" } },
+    controller: [{ Enabled: "False", Name: "Wireless Controller", ButtonA: "1", ButtonB: "4", ButtonC: "2", ButtonD: "3", ButtonAB: "6", ButtonBC: "8", ButtonAC: "7", ButtonABC: "12", Coin: "14", Card: "13", Start: "10,5", Test: "9", Service: "15", Kill: "13", TestBool: "True", ServiceBool: "False", KillBool: "False" },
+      { Enabled: "False", Name: "Controller (Xbox One For Windows)", ButtonA: "1,5", ButtonB: "4", ButtonC: "2", ButtonD: "3", Coin: "14", Card: "14", Start: "10,11", Test: "9" }],
+    n2n: { host: "", community: "", playerName: "Player1", virtualIp: "", dhcp: true, relay: false, noPortForwarding: false, multicast: true, iface: "N2N", conf: "" },
+    app: { mode: "client", syncMods: false, closeOnPlay: false },
+    interfaces: ["Gundam", "Ethernet", "Wi-Fi", "N2N", "N2N-LM"], background: null,
+  },
+  status: { client: false, lm: false, server: false, n2n: { running: false, connected: false, ip: "" }, log: [], busy: "" },
+};
+async function call(name, ...args) {
+  if (HAS_HOST) return window[name](...args);
+  switch (name) {
+    case "getState": return JSON.parse(JSON.stringify(mock.state));
+    case "getStatus": return mock.status;
+    case "listControllers": return [{ name: "Controller (Xbox One For Windows)", xinput: true }, { name: "Wireless Controller", xinput: false }];
+    default: return { ok: true };
+  }
+}
+
+// ================================================================ constants
+const RES = [ // index = SnowLauncher PCB_Resolution
+  { label: "4K", px: "3840 × 2160", h: 2160 }, { label: "2K", px: "2560 × 1440", h: 1440 }, { label: "1080p", px: "1920 × 1080", h: 1080 },
+  { label: "720p", px: "1280 × 720", h: 720 }, { label: "480p", px: "854 × 480", h: 480 }, { label: "240p", px: "426 × 240", h: 240 }, { label: "144p", px: "256 × 144", h: 144 }];
+const RES_ORDER = [3, 2, 1, 0];                 // offered in the menu: 720p → 4K
+const WIN = ["Fullscreen", "Fullscreen (keep taskbar)", "3840×2160", "3440×1440", "3200×1800", "2560×1440", "2560×1080", "2048×1536", "1920×1200", "1920×1080",
+  "1920×823", "1792×768", "1680×1050", "1680×945", "1600×1200", "1440×900", "1440×810", "1400×1050", "1280×1024", "1280×960", "1280×800", "1280×720",
+  "800×640", "800×600", "640×480", "320×240"];
+const WIN_169 = [2, 4, 5, 9, 13, 16, 21];      // 16:9 window sizes (the game renders 16:9)
+const REGIONS = ["Aichi", "Aomori", "Akita", "Ishikawa", "Ibaraki", "Iwate", "Ehime", "Oita", "Osaka", "Okayama", "Okinawa", "Kagawa", "Kagoshima", "Kanagawa",
+  "Gifu", "Kyoto", "Kumamoto", "Gunma", "Kochi", "Saitama", "Saga", "Shiga", "Shizuoka", "Shimane", "Chiba", "Tokyo", "Tokushima", "Tochigi", "Tottori",
+  "Toyama", "Nagasaki", "Nagano", "Nara", "Niigata", "Hyogo", "Hiroshima", "Fukui", "Fukuoka", "Fukushima", "Hokkaido", "Mie", "Miyagi", "Miyazaki",
+  "Yamagata", "Yamaguchi", "Yamanashi", "Wakayama"];
+const KB_ACTIONS = [["Up", "Up"], ["Down", "Down"], ["Left", "Left"], ["Right", "Right"], ["ButtonA", "A · Shoot"], ["ButtonB", "B · Melee"], ["ButtonC", "C · Boost"],
+  ["ButtonD", "D · Search"], ["ButtonAB", "A+B"], ["ButtonBC", "B+C"], ["ButtonAC", "A+C"], ["ButtonABC", "A+B+C"], ["Start", "Start"], ["Coin", "Coin"],
+  ["Card", "Card"], ["Test", "Test"], ["Kill", "Close game"]];
+const PAD_ACTIONS = [["ButtonA", "A · Shoot"], ["ButtonB", "B · Melee"], ["ButtonC", "C · Boost"], ["ButtonD", "D · Search"], ["ButtonAB", "A+B"], ["ButtonBC", "B+C"],
+  ["ButtonAC", "A+C"], ["ButtonABC", "A+B+C"], ["Start", "Start"], ["Coin", "Coin"], ["Card", "Card"], ["Test", "Test", "TestBool"], ["Service", "Service", "ServiceBool"], ["Kill", "Close game", "KillBool"]];
+
+function keyName(e) {   // browser key -> name the game's loader understands
+  const c = e.code;
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit[0-9]$/.test(c)) return c.slice(5);
+  if (/^Numpad[0-9]$/.test(c)) return c.slice(6) + " (NumPad)";
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(c)) return c;
+  const map = { NumpadMultiply: "* (NumPad)", NumpadAdd: "+ (NumPad)", NumpadSubtract: "- (NumPad)", NumpadDecimal: ". (NumPad)", NumpadDivide: "/ (NumPad)",
+    ArrowUp: "UpArr", ArrowDown: "DownArr", ArrowLeft: "LeftArr", ArrowRight: "RightArr", Enter: "Return", NumpadEnter: "Return", Space: "Space", Tab: "Tab",
+    Backspace: "Backspace", Delete: "Delete", Insert: "Insert", Home: "Home", End: "End", PageUp: "PgUp", PageDown: "PgDown", Pause: "Pause" };
+  return map[c] || null;
+}
+const prettyKey = k => ({ UpArr: "↑", DownArr: "↓", LeftArr: "←", RightArr: "→" }[k] || k);
+
+// ================================================================ helpers
+let S = null;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const getK = (o, path) => path.split(".").reduce((a, k) => a == null ? a : a[k], o);
+function setK(o, path, v) { const ks = path.split("."); const last = ks.pop(); ks.reduce((a, k) => a[k] ??= {}, o)[last] = v; }
+function toast(msg, err) { const el = $("#toast"); el.textContent = t(msg); el.className = "toast show" + (err ? " err" : ""); clearTimeout(el._h); el._h = setTimeout(() => el.className = "toast", 2600); }
+const forHost = () => Object.assign({}, S, { background: null, interfaces: null });   // don't send the picture back
+let saveTimer = 0;
+function changed() {   // everything saves by itself, shortly after a change
+  renderQuick();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const r = await call("saveState", forHost());
+    if (r && r.ok === false) toast(r.error || "Could not save", true);
+    else { const s = $("#saved"); s.classList.add("show"); clearTimeout(s._h); s._h = setTimeout(() => s.classList.remove("show"), 1400); }
+  }, 350);
+}
+async function saveNow() { clearTimeout(saveTimer); return call("saveState", forHost()); }
+
+// simple data-k bindings (Online / Mods pages)
+function bindForm() {
+  for (const el of $$("[data-k]")) {
+    const v = getK(S, el.dataset.k);
+    if (el.type === "checkbox") el.checked = !!v; else el.value = v ?? "";
+    el.onchange = () => { setK(S, el.dataset.k, el.type === "checkbox" ? el.checked : el.value); changed(); };
+  }
+}
+
+// ================================================================ navigation
+function showPage(name) {
+  $$(".nav button[data-page]").forEach(x => x.classList.toggle("active", x.dataset.page === name));
+  $$(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + name));
+}
+for (const b of $$(".nav button[data-page]")) b.onclick = () => showPage(b.dataset.page);
+for (const q of $$(".quick .q[data-goto]")) q.onclick = () => { showPage("settings"); openCat(q.dataset.goto); };
+
+// ================================================================ display helpers (window index <-> mode + size)
+const winMode = i => i === 0 ? 0 : i === 1 ? 1 : 2;   // 0 fullscreen, 1 fullscreen keep taskbar, 2 windowed
+function recommendedRes() { const h = (S.monitor && S.monitor.h) || 1080; let best = 3; for (const i of RES_ORDER) if (RES[i].h <= h) best = i; return best; }
+function screenPreview(side) {
+  const w = S.cfg[side].window, mode = winMode(w), m = S.monitor || { w: 1920, h: 1080 };
+  let box;
+  if (mode === 0) box = { l: 0, t: 0, w: 100, h: 100 };
+  else if (mode === 1) box = { l: 0, t: 0, w: 100, h: 91 };
+  else { const [ww, hh] = WIN[w].split("×").map(Number); const fw = Math.min(100, ww / m.w * 100), fh = Math.min(91, hh / m.h * 100); box = { l: (100 - fw) / 2, t: (91 - fh) / 2, w: fw, h: fh }; }
+  return `<div class="screen">${mode !== 0 ? '<div class="bar"></div>' : ""}<div class="win" style="left:${box.l}%;top:${box.t}%;width:${box.w}%;height:${box.h}%">${mode === 2 ? WIN[w] : t("Game")}</div></div>`;
+}
+
+// ================================================================ settings menu (data driven)
+const T = (label, sub) => ({ label, sub });
+function cycle(o) { return Object.assign({ type: "cycle" }, o); }
+function toggle(o) { return Object.assign({ type: "toggle" }, o); }
+function displayOptions(side, who) {
+  return [
+    { section: who },
+    cycle({ label: "Display mode", desc: "Fullscreen covers the whole monitor. Keep taskbar leaves the Windows taskbar visible. Windowed lets you pick a window size.",
+      values: () => ["Fullscreen", "Fullscreen (keep taskbar)", "Windowed"], get: () => winMode(S.cfg[side].window),
+      set: v => { S.cfg[side].window = v === 2 ? (WIN_169.includes(S.cfg[side].window) ? S.cfg[side].window : 21) : v; }, preview: () => screenPreview(side) }),
+    cycle({ label: "Window size", desc: "Size of the game window. 16:9 sizes match the game's picture.", visible: () => winMode(S.cfg[side].window) === 2,
+      values: () => WIN_169.map(i => WIN[i]), get: () => Math.max(0, WIN_169.indexOf(S.cfg[side].window)), set: v => { S.cfg[side].window = WIN_169[v]; },
+      preview: () => screenPreview(side) }),
+    cycle({ label: "Resolution", desc: "The resolution the game renders at. Higher is sharper but needs a stronger GPU. It works best when it matches your monitor or the window size.",
+      values: () => RES_ORDER.map(i => RES[i].label + (i === recommendedRes() ? "  ★" : "")), get: () => Math.max(0, RES_ORDER.indexOf(S.cfg[side].resolution)),
+      set: v => { S.cfg[side].resolution = RES_ORDER[v]; },
+      extra: () => { const r = RES[S.cfg[side].resolution], m = S.monitor || {}; let h = `<p>${t("{px} pixels.", { px: r.px })}</p>`;
+        if (m.h) h += r.h > m.h ? `<p class="warn">${t("Higher than your monitor ({w}×{h}): the 3D can end up in a corner.", { w: m.w, h: m.h })}</p>` : `<p class="rec">${t("★ Recommended for your monitor ({w}×{h}): {res}", { w: m.w, h: m.h, res: RES[recommendedRes()].label })}</p>`;
+        return h; } }),
+  ];
+}
+const CATS = {
+  graphics: { title: "Graphics", items: () => [
+    ...displayOptions("client", "Game"),
+    toggle({ label: "Frame rate limit", desc: "Locks the game to 60 FPS, like the arcade cabinet. Leave it on: the game's speed is tied to the frame rate.",
+      get: () => S.cfg.framerateLimit, set: v => S.cfg.framerateLimit = v }),
+    ...displayOptions("lm", "Live Monitor"),
+    { section: "In-game overlay" },
+    toggle({ label: "EXVS Overlay", desc: () => t("In-game menu (Insert, or hold Back + Start): FPS counter, controller overlay, hide the battle HUD (F9), AMD FSR 1 upscaling, live window size, resolution with restart, card and coin on a controller button. Removing it leaves the game untouched. Included version: {v}.", { v: S.files.overlayVersion || "?" }),
+      extra: () => S.files.overlayStatus === "outdated" ? `<p class="warn">${t("The installed overlay is older than the one in this launcher.")}</p><button class="btn primary" onclick="installOverlayNow()">${t("Update overlay")}</button>` : "",
+      get: () => !!S.files.overlay, set: async v => { const r = await call(v ? "installOverlay" : "removeOverlay"); if (r && r.ok === false) { toast(r.error, true); return false; }
+        S.files.overlay = v; S.files.overlayStatus = v ? "current" : "missing"; renderOverlayBanner(); toast(v ? "Overlay installed" : "Overlay removed"); }, noSave: true }),
+  ]},
+  gameplay: { title: "Gameplay", items: () => [
+    { section: "Startup" },
+    cycle({ label: "Opening screens", desc: "Skip the warning and logo screens when the game boots.", values: () => ["Show all", "Skip reminder", "Skip logos", "Skip all"],
+      get: () => S.cfg.openingSkip, set: v => S.cfg.openingSkip = v }),
+    cycle({ label: "Play button starts", desc: "What the Play button launches. The Live Monitor is the spectator screen of the arcade.", values: () => ["Client", "Live Monitor", "Client + Live Monitor"],
+      get: () => ["client", "lm", "both"].indexOf(S.app.mode), set: v => S.app.mode = ["client", "lm", "both"][v] }),
+    { section: "Game" },
+    toggle({ label: "Quick skin change", desc: "Lets you change the unit's skin quickly on the unit select screen.", get: () => S.cfg.enableQuickSkinChange, set: v => S.cfg.enableQuickSkinChange = v }),
+    cycle({ label: "Region", desc: "Arcade location shown to other players (Japanese prefecture).", type: "select",
+      values: () => REGIONS.map((n, i) => `${String(i + 1).padStart(2, "0")} · ${n}`), get: () => S.cfg.region - 1, set: v => S.cfg.region = v + 1 }),
+    { section: "Launcher" },
+    toggle({ label: "Close launcher on Play", desc: "Closes this window a few seconds after the game starts. N2N stays connected while the game runs.", get: () => S.app.closeOnPlay, set: v => S.app.closeOnPlay = v }),
+  ]},
+  controls: { title: "Controls", custom: true },
+  account: { title: "Account", items: () => [
+    { section: "Player card" },
+    { type: "text", label: "Card name", desc: "Your player card (chip ID). Your profile, rank and records are saved on it.", get: () => S.cfg.chipId, set: v => S.cfg.chipId = v.trim() },
+    { type: "password", label: "Access code", desc: "The PIN of your card.", get: () => S.cfg.accessCode, set: v => S.cfg.accessCode = v.trim() },
+    { section: "Server" },
+    cycle({ label: "Card server", desc: "Where your card is stored. Local uses Server.exe on this PC (start it from Online). Custom lets you type any address.",
+      values: () => ["Online · card.gexvslt.com", "Local · this PC", "Custom"],
+      get: () => /gexvslt/i.test(S.cfg.server) ? 0 : /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:28080)?\/?$/i.test(S.cfg.server) ? 1 : 2,
+      set: v => { if (v === 0) S.cfg.server = "https://card.gexvslt.com/"; else if (v === 1) S.cfg.server = "127.0.0.1:28080"; else if (/gexvslt|127\.0\.0\.1|localhost/.test(S.cfg.server)) S.cfg.server = ""; } }),
+    { type: "text", label: "Server address", desc: "Exact address written to the game's config.", get: () => S.cfg.server, set: v => S.cfg.server = v.trim(), rerender: true },
+    { type: "text", label: "Serial", desc: "4 letters or numbers that identify this machine.", get: () => S.cfg.serial, set: v => S.cfg.serial = v.trim().slice(0, 4), maxlength: 4 },
+  ]},
+  advanced: { title: "Advanced", items: () => [
+    { section: "Network adapter" },
+    cycle({ type: "select", label: "Game adapter", desc: "Network adapter the game uses for local / N2N matches.", values: () => S.ifaces, get: () => Math.max(0, S.ifaces.indexOf(S.cfg.client.iface)), set: v => S.cfg.client.iface = S.ifaces[v] }),
+    toggle({ label: "Game fixed IP", desc: "Force the game to use this IP address. Leave off unless your group told you to.", get: () => S.cfg.client.ipRun, set: v => S.cfg.client.ipRun = v }),
+    { type: "text", label: "Game IP address", visible: () => S.cfg.client.ipRun, desc: "IP address for the game.", get: () => S.cfg.client.ip, set: v => S.cfg.client.ip = v.trim() },
+    cycle({ type: "select", label: "Live Monitor adapter", desc: "Network adapter the Live Monitor uses.", values: () => S.ifaces, get: () => Math.max(0, S.ifaces.indexOf(S.cfg.lm.iface)), set: v => S.cfg.lm.iface = S.ifaces[v] }),
+    toggle({ label: "Live Monitor fixed IP", desc: "Force the Live Monitor to use this IP address.", get: () => S.cfg.lm.ipRun, set: v => S.cfg.lm.ipRun = v }),
+    { type: "text", label: "Live Monitor IP address", visible: () => S.cfg.lm.ipRun, desc: "IP address for the Live Monitor.", get: () => S.cfg.lm.ip, set: v => S.cfg.lm.ip = v.trim() },
+    { section: "Loader" },
+    toggle({ label: "Disable socket hook", desc: "Turns off the loader's network redirection. Leave it off unless you know you need it.", get: () => S.cfg.disableSocketHook, set: v => S.cfg.disableSocketHook = v }),
+    { type: "text", label: "Boot token", desc: "Only needed by some servers.", get: () => S.cfg.bootToken, set: v => S.cfg.bootToken = v.trim() },
+    toggle({ label: "Real card reader", desc: "Use a physical card reader connected to a COM port.", get: () => S.cfg.useRealCardReader, set: v => S.cfg.useRealCardReader = v }),
+    { type: "text", label: "Card reader COM port", visible: () => S.cfg.useRealCardReader, desc: "For example COM3.", get: () => S.cfg.cardReaderComPort, set: v => S.cfg.cardReaderComPort = v.trim() },
+  ]},
+  launcher: { title: "Launcher", items: () => [
+    { section: "Language" },
+    cycle({ label: "Language", desc: "Language of the launcher.", values: () => LANGS.map(l => l[1]),
+      get: () => Math.max(0, LANGS.findIndex(l => l[0] === LANG)), set: v => { S.app.lang = LANGS[v][0]; setLang(S.app.lang); } }),
+    { section: "Look" },
+    { type: "actions", label: "Background picture", desc: "Picture behind the Play screen (JPG, PNG or WEBP).",
+      actions: [["Choose…", async () => { const r = await call("pickBackground"); if (r && r.dataUrl) setBackground(r.dataUrl); else if (r && r.error) toast(r.error, true); }],
+                ["Default", async () => { await call("resetBackground"); setBackground(null); }]] },
+    { section: "Game folder" },
+    { type: "actions", label: "Game folder", desc: () => S.gameDir, actions: [["Open folder", () => call("openFolder")]] },
+    { type: "actions", label: "Force close the game", desc: "Closes the Client and Live Monitor right away.", actions: [["Close game", async () => { if (confirm(t("Force close the game?"))) await call("stopGame"); }, "danger"]] },
+    { section: "About" },
+    { type: "actions", label: () => "EXVS Launcher " + S.version, desc: "Created by Furshow. Uses the same settings file as SnowLauncher (SnowLauncher.ini), so you can switch between both.",
+      actions: [["Credits", () => openCredits()]] },
+  ]},
+};
+const CAT_KEYS = Object.keys(CATS);
+let cat = "graphics", focusIdx = 0, rows = [];
+
+function renderCats() {
+  $("#cats").innerHTML = `<span class="bump" data-d="-1">Q</span>` + CAT_KEYS.map(k => `<button data-c="${k}" class="${k === cat ? "on" : ""}">${esc(t(CATS[k].title))}</button>`).join("") + `<span class="bump" data-d="1">E</span>`;
+  for (const b of $$("#cats button")) b.onclick = () => openCat(b.dataset.c);
+  for (const b of $$("#cats .bump")) b.onclick = () => stepCat(+b.dataset.d);
+}
+function stepCat(d) { openCat(CAT_KEYS[(CAT_KEYS.indexOf(cat) + d + CAT_KEYS.length) % CAT_KEYS.length]); }
+function openCat(k) { cat = k; focusIdx = 0; renderCats(); renderOpts(); }
+const val = (x) => typeof x === "function" ? x() : x;
+
+function renderOpts() {
+  const box = $("#opts");
+  if (CATS[cat].custom) { renderControlsCat(box); return; }
+  const items = CATS[cat].items().filter(it => it.section || !it.visible || it.visible());
+  rows = [];
+  box.innerHTML = "";
+  for (const it of items) {
+    if (it.section) { const s = document.createElement("div"); s.className = "opt-sec"; s.textContent = t(it.section); box.appendChild(s); continue; }
+    const el = document.createElement("div"); el.className = "opt";
+    const idx = rows.length; rows.push({ it, el });
+    el.innerHTML = `<div class="lbl">${esc(t(val(it.label)))}</div><div class="c"></div>`;
+    const c = el.querySelector(".c");
+    if (it.type === "cycle") {
+      const vals = it.values(), cur = it.get();
+      c.innerHTML = `<div class="cyc"><button data-d="-1">◀</button><div class="val">${esc(t(vals[cur]) ?? "—")}${vals.length <= 7 ? `<div class="dots">${vals.map((_, i) => `<i class="${i === cur ? "on" : ""}"></i>`).join("")}</div>` : ""}</div><button data-d="1">▶</button></div>`;
+      c.querySelectorAll("button").forEach(b => b.onclick = () => { focusRow(idx); change(idx, +b.dataset.d); });
+      c.querySelector(".val").onclick = () => { focusRow(idx); change(idx, 1); };
+    } else if (it.type === "select") {
+      const vals = it.values(), cur = it.get();
+      c.innerHTML = `<select>${vals.map((v, i) => `<option value="${i}" ${i === cur ? "selected" : ""}>${esc(t(v))}</option>`).join("")}</select>`;
+      c.querySelector("select").onchange = e => { it.set(+e.target.value); changed(); updateInfo(); };
+    } else if (it.type === "toggle") {
+      const on = !!it.get();
+      c.innerHTML = `<div class="onoff"><button data-v="0" class="${on ? "" : "on"}">${t("OFF")}</button><button data-v="1" class="${on ? "on" : ""}">${t("ON")}</button></div>`;
+      c.querySelectorAll("button").forEach(b => b.onclick = () => { focusRow(idx); setToggle(idx, b.dataset.v === "1"); });
+    } else if (it.type === "text" || it.type === "password") {
+      c.innerHTML = `<input type="${it.type}" ${it.maxlength ? `maxlength="${it.maxlength}"` : ""}>`;
+      const inp = c.querySelector("input"); inp.value = it.get() ?? "";
+      inp.oninput = () => { it.set(inp.value); changed(); };
+      inp.onchange = () => { if (it.rerender) renderOpts(); };
+      inp.onfocus = () => focusRow(idx, true);
+      if (it.type === "password") { inp.onmouseenter = () => inp.type = "text"; inp.onmouseleave = () => { if (document.activeElement !== inp) inp.type = "password"; }; inp.onblur = () => inp.type = "password"; }
+    } else if (it.type === "actions") {
+      c.innerHTML = `<div class="acts">${it.actions.map((a, i) => `<button class="btn ${a[2] || ""}" data-i="${i}">${esc(t(a[0]))}</button>`).join("")}</div>`;
+      c.querySelectorAll("button").forEach(b => b.onclick = () => it.actions[+b.dataset.i][1]());
+    }
+    el.onmouseenter = () => focusRow(idx, true);
+    box.appendChild(el);
+  }
+  focusRow(Math.min(focusIdx, rows.length - 1), true);
+}
+function focusRow(i, noScroll) {
+  if (i < 0 || !rows[i]) return;
+  focusIdx = i;
+  rows.forEach((r, j) => r.el.classList.toggle("focus", j === i));
+  if (!noScroll) rows[i].el.scrollIntoView({ block: "nearest" });
+  updateInfo();
+}
+function updateInfo() {
+  const r = rows[focusIdx]; if (!r) { $("#info").innerHTML = ""; return; }
+  const it = r.it;
+  let html = `<div class="k">${esc(t(CATS[cat].title))}</div><h3>${esc(t(val(it.label)))}</h3><p>${esc(t(val(it.desc)) || "")}</p>`;
+  if (it.extra) html += it.extra();
+  if (it.preview) html += it.preview();
+  $("#info").innerHTML = html;
+}
+async function change(i, d) {
+  const it = rows[i].it;
+  if (it.type === "cycle") { const n = it.values().length; it.set((it.get() + d + n) % n); }
+  else if (it.type === "select") { const n = it.values().length; it.set(Math.min(n - 1, Math.max(0, it.get() + d))); }
+  else if (it.type === "toggle") { await setToggle(i, !it.get()); return; }
+  else return;
+  changed(); renderOpts();
+}
+async function setToggle(i, v) {
+  const it = rows[i].it;
+  if (!!it.get() === v) return;
+  const r = await it.set(v);
+  if (r === false) return;
+  if (!it.noSave) changed(); else renderQuick();
+  renderOpts();
+}
+
+// keyboard navigation inside the settings menu
+window.addEventListener("keydown", e => {
+  if (!$("#page-settings").classList.contains("active") || listening) return;
+  const typing = /INPUT|SELECT/.test(document.activeElement?.tagName || "");
+  if (e.code === "KeyQ" && !typing) { stepCat(-1); e.preventDefault(); return; }
+  if (e.code === "KeyE" && !typing) { stepCat(1); e.preventDefault(); return; }
+  if (CATS[cat].custom || typing) return;
+  if (e.code === "ArrowDown") { focusRow(Math.min(rows.length - 1, focusIdx + 1)); e.preventDefault(); }
+  else if (e.code === "ArrowUp") { focusRow(Math.max(0, focusIdx - 1)); e.preventDefault(); }
+  else if (e.code === "ArrowLeft") { change(focusIdx, -1); e.preventDefault(); }
+  else if (e.code === "ArrowRight" || e.code === "Enter") {
+    const it = rows[focusIdx]?.it;
+    if (it && (it.type === "text" || it.type === "password")) rows[focusIdx].el.querySelector("input").focus();
+    else if (it && it.type === "actions" && it.actions[0]) it.actions[0][1]();
+    else change(focusIdx, 1);
+    e.preventDefault();
+  }
+});
+
+// ================================================================ controls category
+let ctrlTab = "kb-client", listening = null, padIdx = 0, devices = [];
+function renderControlsCat(box) {
+  rows = [];
+  box.innerHTML = `
+    <div class="tabs" id="ctrl-tabs">
+      <button data-t="kb-client">${t("Keyboard · Game")}</button><button data-t="kb-lm">${t("Keyboard · Live Monitor")}</button><button data-t="pad0">${t("Controller {n}", { n: 1 })}</button><button data-t="pad1">${t("Controller {n}", { n: 2 })}</button>
+    </div>
+    <div id="ctrl-body"></div>`;
+  for (const b of $$("#ctrl-tabs button")) { b.classList.toggle("on", b.dataset.t === ctrlTab); b.onclick = () => { ctrlTab = b.dataset.t; renderControlsCat(box); }; }
+  if (ctrlTab.startsWith("kb")) renderKeyboard(); else { padIdx = +ctrlTab.slice(3); renderPad(); }
+  $("#info").innerHTML = ctrlTab.startsWith("kb")
+    ? `<div class="k">${t("Controls")}</div><h3>${t("Keyboard")}</h3><p>${t("Click a key box and press the new key. Esc cancels, right-click clears.")}</p><p>${t("A+B, B+C, A+C and A+B+C are single keys that press several buttons at once.")}</p><p class="muted">${t("Close game (Kill) shuts the game down right away.")}</p>`
+    : `<div class="k">${t("Controls")}</div><h3>${t("Controller")}</h3><p>${t("Pick your controller, turn it on, then click an action and press the button on the controller. An action can have several buttons; pressing one that is already there removes it.")}</p><p class="muted">${t("Xbox controllers use the game's own XInput layout, so they don't need mapping. For Card and Coin on an Xbox controller use the EXVS Overlay (Graphics › In-game overlay).")}</p>`;
+}
+function renderKeyboard() {
+  const side = ctrlTab === "kb-lm" ? "lm" : "client";
+  const kb = S.keyboard[side] ??= {};
+  const on = String(kb.Enabled).toLowerCase() === "true";
+  const actions = side === "lm" ? KB_ACTIONS.filter(a => !["ButtonAB", "ButtonBC", "ButtonAC", "ButtonABC"].includes(a[0])) : KB_ACTIONS;
+  $("#ctrl-body").innerHTML = `
+    <div class="opt focus" style="margin-bottom:14px"><div class="lbl">${t("Keyboard")}</div><div class="c"><div class="onoff"><button data-v="0" class="${on ? "" : "on"}">${t("OFF")}</button><button data-v="1" class="${on ? "on" : ""}">${t("ON")}</button></div></div></div>
+    <div class="keys">${actions.map(([k, label]) => `<div class="key"><span>${esc(t(label))}</span><div class="cap ${kb[k] ? "" : "empty"}" data-key="${k}">${kb[k] ? esc(prettyKey(kb[k])) : t("none")}</div></div>`).join("")}</div>`;
+  $$("#ctrl-body .onoff button").forEach(b => b.onclick = () => { kb.Enabled = b.dataset.v === "1" ? "True" : "False"; changed(); renderKeyboard(); });
+  for (const cap of $$("#ctrl-body .cap")) {
+    cap.onclick = () => { if (listening) listening.classList.remove("listening"); listening = cap; cap.classList.add("listening"); cap.textContent = t("press…"); };
+    cap.oncontextmenu = e => { e.preventDefault(); kb[cap.dataset.key] = ""; listening = null; changed(); renderKeyboard(); };
+  }
+}
+window.addEventListener("keydown", e => {
+  if (!listening || !listening.closest("#ctrl-body") || ctrlTab.startsWith("pad")) return;
+  e.preventDefault(); e.stopPropagation();
+  const kb = S.keyboard[ctrlTab === "kb-lm" ? "lm" : "client"], k = listening.dataset.key;
+  if (e.code !== "Escape") {
+    const n = keyName(e);
+    if (!n) { toast("The game can't use that key", true); return; }
+    for (const [kk] of KB_ACTIONS) if (kk !== k && kb[kk] === n) kb[kk] = "";   // one action per key
+    kb[k] = n; changed();
+  }
+  listening = null; renderKeyboard();
+}, true);
+
+async function refreshDevices() { devices = await call("listControllers") || []; if (ctrlTab.startsWith("pad") && cat === "controls") renderPad(); }
+function renderPad() {
+  const p = S.controller[padIdx] ??= {};
+  const on = String(p.Enabled).toLowerCase() === "true";
+  const names = [...new Set([...devices.map(d => d.name), p.Name].filter(Boolean))];
+  const xinput = /xbox|x-box|xinput/i.test(p.Name || "");
+  $("#ctrl-body").innerHTML = `
+    <div class="opt focus" style="margin-bottom:6px"><div class="lbl">${t("Controller {n}", { n: padIdx + 1 })}</div><div class="c"><div class="onoff"><button data-v="0" class="${on ? "" : "on"}">${t("OFF")}</button><button data-v="1" class="${on ? "on" : ""}">${t("ON")}</button></div></div></div>
+    <div class="opt" style="margin-bottom:14px"><div class="lbl">${t("Device")}<small>${t(xinput ? "Uses the game's native XInput layout" : names.length ? "Map the buttons below" : "Connect a controller and press Refresh")}</small></div>
+      <div class="c" style="display:flex;gap:8px"><select id="pad-device">${names.map(n => `<option ${n === p.Name ? "selected" : ""}>${esc(n)}</option>`).join("") || `<option value=''>${t("No controller found")}</option>`}</select><button class="btn" id="pad-refresh">${t("Refresh")}</button></div></div>
+    ${xinput ? "" : `<div class="keys">${PAD_ACTIONS.map(([k, label, boolKey]) => {
+      const en = !boolKey || String(p[boolKey]).toLowerCase() === "true"; const v = en ? (p[k] || "") : "";
+      return `<div class="key"><span>${esc(t(label))}</span><div class="cap ${v ? "" : "empty"}" data-key="${k}" data-bool="${boolKey || ""}">${v ? v.split(",").map(x => "B" + x.trim()).join(" ") : t("none")}</div></div>`; }).join("")}</div>`}`;
+  $$("#ctrl-body .onoff button").forEach(b => b.onclick = () => { p.Enabled = b.dataset.v === "1" ? "True" : "False"; changed(); renderPad(); });
+  $("#pad-device").onchange = e => { p.Name = e.target.value; changed(); renderPad(); };
+  $("#pad-refresh").onclick = refreshDevices;
+  for (const cap of $$("#ctrl-body .cap")) {
+    cap.onclick = () => capturePad(cap);
+    cap.oncontextmenu = e => { e.preventDefault(); p[cap.dataset.key] = ""; if (cap.dataset.bool) p[cap.dataset.bool] = "False"; if (listening === cap) { listening = null; call("cancelCapture"); } changed(); renderPad(); };
+  }
+}
+async function capturePad(cap) {
+  if (listening) listening.classList.remove("listening");
+  listening = cap; cap.classList.add("listening"); cap.textContent = t("press…");
+  const p = S.controller[padIdx], k = cap.dataset.key;
+  const r = await call("captureButton", p.Name || "", 6000);
+  if (listening !== cap) return;
+  listening = null;
+  if (r && r.button) {
+    const cur = (cap.dataset.bool && String(p[cap.dataset.bool]).toLowerCase() !== "true") ? [] : (p[k] || "").split(",").map(s => s.trim()).filter(Boolean);
+    const b = String(r.button);
+    p[k] = cur.includes(b) ? cur.filter(x => x !== b).join(",") : [...cur, b].join(",");
+    if (cap.dataset.bool) p[cap.dataset.bool] = p[k] ? "True" : "False";
+    changed();
+  } else if (r && r.error) toast(r.error, true);
+  renderPad();
+}
+window.addEventListener("keydown", e => { if (listening && ctrlTab.startsWith("pad") && e.code === "Escape") { listening = null; call("cancelCapture"); renderPad(); } });
+
+// ================================================================ play page
+// credits
+function openCredits() { $("#cr-ver").textContent = t("Version {v} · Overlay {o}", { v: S.version, o: S.files.overlayVersion || "?" }); $("#credits").style.display = ""; }
+function closeCredits() { $("#credits").style.display = "none"; }
+const creditsOpen = () => $("#credits").style.display !== "none";
+$("#cr-close").onclick = closeCredits;
+$("#credits").onclick = e => { if (e.target.id === "credits") closeCredits(); };
+window.addEventListener("keydown", e => { if (e.code === "Escape" && $("#credits").style.display !== "none") closeCredits(); });
+
+// overlay install / update banner on the Play page
+let ovHidden = false;
+try { ovHidden = localStorage.getItem("ovBannerHidden") === (S && S.files.overlayVersion); } catch (e) {}
+function renderOverlayBanner() {
+  const st = S.files.overlayStatus, b = $("#ov-banner");
+  try { ovHidden = localStorage.getItem("ovBannerHidden") === S.files.overlayVersion + ":" + st; } catch (e) {}
+  if (!S.files.client || ovHidden || (st !== "missing" && st !== "outdated")) { b.style.display = "none"; return; }
+  b.style.display = "";
+  $("#ov-text").innerHTML = st === "missing"
+    ? t("Install the <b>EXVS Overlay</b>: in-game menu, FPS, controller overlay and the fullscreen fix.")
+    : t("<b>EXVS Overlay {v}</b> is available: update the one in your game folder.", { v: esc(S.files.overlayVersion) });
+  $("#ov-btn").textContent = t(st === "missing" ? "Install" : "Update");
+}
+async function installOverlayNow() {
+  const r = await call("installOverlay");
+  if (r && r.ok === false) { toast(r.error, true); return; }
+  S.files.overlay = true; S.files.overlayStatus = "current";
+  renderOverlayBanner(); if (cat === "graphics") renderOpts();
+  toast(running ? "Overlay updated: restart the game to use it" : "Overlay installed");
+}
+$("#ov-btn").onclick = installOverlayNow;
+$("#ov-x").onclick = () => { try { localStorage.setItem("ovBannerHidden", S.files.overlayVersion + ":" + S.files.overlayStatus); } catch (e) {} renderOverlayBanner(); };
+
+function renderQuick() {
+  const c = S.cfg.client, m = winMode(c.window);
+  $("#q-display").textContent = m === 2 ? t("Window {size}", { size: WIN[c.window] }) : t(WIN[m]);
+  $("#q-res").textContent = RES[c.resolution]?.label || "—";
+  $("#q-card").textContent = S.cfg.chipId || t("Not set"); $("#q-card").className = S.cfg.chipId ? "" : "muted";
+  const sv = (S.cfg.server || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  $("#q-server").textContent = sv || t("Not set"); $("#q-server").className = sv ? "" : "muted";
+  for (const b of $$("#mode-seg button")) b.classList.toggle("on", b.dataset.mode === S.app.mode);
+}
+for (const b of $$("#mode-seg button")) b.onclick = () => { S.app.mode = b.dataset.mode; changed(); };
+
+let running = false;
+$("#play-btn").onclick = async () => {
+  const btn = $("#play-btn");
+  if (running) { if (confirm(t("Close the game?"))) await call("stopGame"); return; }
+  if (!S.cfg.chipId) { toast("Set your card name in Settings › Account first", true); showPage("settings"); openCat("account"); return; }
+  btn.disabled = true;
+  await saveNow();
+  const r = await call("play", S.app.mode);
+  btn.disabled = false;
+  if (r && r.ok === false) toast(r.error || "Could not start the game", true);
+};
+function setChip(id, on, label, warn) { const c = $(id); c.className = "chip" + (on ? " on" : "") + (warn ? " warn" : ""); c.lastChild.textContent = t(label); }
+let logShown = 0;
+async function poll() {
+  try {
+    const st = await call("getStatus", logShown);
+    running = st.client || st.lm;
+    const btn = $("#play-btn");
+    btn.classList.toggle("running", running);
+    btn.querySelector("span").textContent = t(running ? "CLOSE GAME" : "PLAY");
+    btn.querySelector("svg").innerHTML = running ? '<rect x="6" y="6" width="12" height="12" rx="2"/>' : '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>';
+    setChip("#chip-game", running, st.client && st.lm ? "Client + LM running" : st.client ? "Client running" : st.lm ? "Live Monitor running" : "Game");
+    const n = st.n2n || {};
+    setChip("#chip-n2n", n.connected, n.connected ? (n.ip ? "N2N " + n.ip : "N2N connected") : n.running ? "N2N connecting…" : "N2N", n.running && !n.connected);
+    setChip("#chip-server", st.server, st.server ? "Local server on" : "Local server");
+    $("#tagline").textContent = t(st.busy || (running ? "Good luck out there, pilot." : "Ready to deploy."));
+    $("#busy").textContent = t(st.busy || "");
+    $("#mm-status").textContent = /sync/i.test(st.busy || "") ? t(st.busy) : "";
+    const np = $("#n2n-pill"); np.textContent = t(n.connected ? "Connected" : n.running ? "Connecting" : "Disconnected"); np.className = "pill" + (n.connected ? "" : " off");
+    const sp = $("#server-pill"); sp.textContent = t(st.server ? "Running" : "Stopped"); sp.className = "pill" + (st.server ? "" : " off");
+    if (st.log && st.log.length) {
+      const box = $("#n2n-log");
+      for (const line of st.log) {
+        const d = document.createElement("div"); d.textContent = line;
+        if (/supernode|connected|created local tap/i.test(line)) d.className = "ok";
+        if (/error|fail|cannot|invalid/i.test(line)) d.className = "err";
+        box.appendChild(d);
+      }
+      logShown = st.logTotal ?? (logShown + st.log.length);
+      box.scrollTop = box.scrollHeight;
+    }
+  } catch (e) { /* host busy */ }
+  setTimeout(poll, 1000);
+}
+
+// ================================================================ online + mods pages
+$("#n2n-start").onclick = async () => { await saveNow(); const r = await call("n2nStart"); if (r && r.ok === false) toast(r.error, true); };
+$("#n2n-stop").onclick = () => call("n2nStop");
+$("#server-start").onclick = async () => { const r = await call("serverStart"); if (r && r.ok === false) toast(r.error, true); };
+$("#server-stop").onclick = () => call("serverStop");
+$("#mm-open").onclick = async () => { const r = await call("openModManager"); if (r && r.ok === false) toast(r.error, true); else toast("Opening the Mod Manager…"); };
+$("#mm-sync").onclick = async () => {
+  const b = $("#mm-sync"); b.disabled = true; $("#mm-status").textContent = t("Syncing…");
+  const r = await call("syncModsNow"); b.disabled = false; $("#mm-status").textContent = "";
+  r && r.ok === false ? toast(r.error, true) : toast("Mods are up to date");
+};
+function setBackground(url) { const h = $("#hero"); if (url) { h.classList.remove("default"); h.style.backgroundImage = `url("${url}")`; } else { h.classList.add("default"); h.style.backgroundImage = ""; } }
+
+// ================================================================ controller navigation (Gamepad API, standard mapping)
+// LT/RT pages · LB/RB categories · stick/D-pad move · A select · B back · X play mode · Start play.
+const PAGES = ["play", "settings", "online", "mods"];
+const curPage = () => PAGES.find(p => $("#page-" + p).classList.contains("active"));
+let gpEl = null, padPrev = [], padHeld = null, padNext = 0, padWaitRelease = false;
+
+function setPadMode(on) {
+  document.body.classList.toggle("pad", on);
+  if (!on && gpEl) { gpEl.classList.remove("gp"); gpEl = null; }
+}
+window.addEventListener("mousemove", () => setPadMode(false));
+window.addEventListener("keydown", () => setPadMode(false), true);
+
+function focusables() {
+  const page = $("#page-" + curPage());
+  return [...page.querySelectorAll("button, input:not([type=checkbox]), select, .switch, .cap, .q")].filter(el => {
+    if (el.disabled || el.closest(".switch") && el !== el.closest(".switch")) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden";
+  });
+}
+function setGp(el) {
+  if (gpEl) gpEl.classList.remove("gp");
+  gpEl = el;
+  if (el) { el.classList.add("gp"); el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+}
+function defaultGp() {
+  const list = focusables();
+  if (curPage() === "play") return $("#play-btn");
+  return list[0] || null;
+}
+function moveGp(dir) {
+  const list = focusables();
+  if (!gpEl || !list.includes(gpEl)) { setGp(defaultGp()); return; }
+  const a = gpEl.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+  let best = null, bestScore = Infinity;
+  for (const el of list) {
+    if (el === gpEl) continue;
+    const b = el.getBoundingClientRect(), bx = b.left + b.width / 2, by = b.top + b.height / 2;
+    const dx = bx - ax, dy = by - ay;
+    let main, side;
+    if (dir === "up") { if (dy > -4) continue; main = -dy; side = Math.abs(dx); }
+    else if (dir === "down") { if (dy < 4) continue; main = dy; side = Math.abs(dx); }
+    else if (dir === "left") { if (dx > -4) continue; main = -dx; side = Math.abs(dy); }
+    else { if (dx < 4) continue; main = dx; side = Math.abs(dy); }
+    const score = main + side * 2.5;
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  if (best) setGp(best);
+}
+function activateGp() {
+  const el = gpEl; if (!el) { setGp(defaultGp()); return; }
+  if (el.tagName === "INPUT") { el.focus(); return; }
+  if (el.classList.contains("switch")) { el.querySelector("input").click(); return; }
+  if (el.tagName === "SELECT") { stepSelect(el, 1); return; }
+  el.click();
+  setTimeout(() => { if (gpEl && !document.contains(gpEl)) setGp(defaultGp()); }, 0);   // the click may re-render
+}
+function stepSelect(sel, d) {
+  const n = sel.options.length; if (!n) return;
+  sel.selectedIndex = (sel.selectedIndex + d + n) % n;
+  sel.dispatchEvent(new Event("change"));
+}
+function goPage(d) {
+  const i = PAGES.indexOf(curPage());
+  showPage(PAGES[(i + d + PAGES.length) % PAGES.length]);
+  setGp(null);
+  if (curPage() !== "settings") setGp(defaultGp());
+}
+
+function onPad(b) {
+  setPadMode(true);
+  if (creditsOpen()) { if (b === "a" || b === "b" || b === "start") closeCredits(); return; }
+  const page = curPage();
+  // a keyboard key is being captured: B cancels it
+  if (listening && !ctrlTab.startsWith("pad")) { if (b === "b") { listening = null; renderKeyboard(); } return; }
+  if (b === "lt") return goPage(-1);
+  if (b === "rt") return goPage(1);
+  if (b === "start") { if (page === "play") $("#play-btn").click(); else { showPage("play"); setGp($("#play-btn")); } return; }
+  const typing = /INPUT/.test(document.activeElement?.tagName || "");
+  if (typing) { if (b === "b" || b === "a") document.activeElement.blur(); return; }
+
+  if (page === "settings") {
+    if (b === "lb") { stepCat(-1); setGp(null); return; }
+    if (b === "rb") { stepCat(1); setGp(null); return; }
+    if (!CATS[cat].custom) {
+      const it = rows[focusIdx]?.it;
+      if (b === "up") focusRow(Math.max(0, focusIdx - 1));
+      else if (b === "down") focusRow(Math.min(rows.length - 1, focusIdx + 1));
+      else if (b === "left") { if (it?.type === "select") { it.set(Math.max(0, it.get() - 1)); changed(); renderOpts(); } else change(focusIdx, -1); }
+      else if (b === "right") { if (it?.type === "select") { it.set(Math.min(it.values().length - 1, it.get() + 1)); changed(); renderOpts(); } else change(focusIdx, 1); }
+      else if (b === "a") {
+        if (it && (it.type === "text" || it.type === "password")) rows[focusIdx].el.querySelector("input").focus();
+        else if (it && it.type === "actions" && it.actions[0]) it.actions[0][1]();
+        else change(focusIdx, 1);
+      }
+      else if (b === "b") showPage("play"), setGp($("#play-btn"));
+      return;
+    }
+  }
+  if (["up", "down", "left", "right"].includes(b)) {
+    if ((b === "left" || b === "right") && gpEl && gpEl.tagName === "SELECT") { stepSelect(gpEl, b === "left" ? -1 : 1); return; }
+    return moveGp(b);
+  }
+  if (b === "a") return activateGp();
+  if (b === "b") { if (page !== "play") { showPage("play"); setGp($("#play-btn")); } return; }
+  if (b === "x" && page === "play") {
+    const modes = ["client", "lm", "both"]; S.app.mode = modes[(modes.indexOf(S.app.mode) + 1) % 3]; changed();
+  }
+}
+
+const PAD_BTNS = { 0: "a", 1: "b", 2: "x", 3: "y", 4: "lb", 5: "rb", 6: "lt", 7: "rt", 9: "start", 12: "up", 13: "down", 14: "left", 15: "right" };
+function padLoop() {
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  const now = performance.now();
+  const pressed = new Set();
+  for (const gp of pads) {
+    gp.buttons.forEach((bt, i) => { if (PAD_BTNS[i] && (bt.pressed || bt.value > 0.5)) pressed.add(PAD_BTNS[i]); });
+    const x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+    if (y < -0.55) pressed.add("up"); if (y > 0.55) pressed.add("down");
+    if (x < -0.55) pressed.add("left"); if (x > 0.55) pressed.add("right");
+  }
+  // while a controller button is being captured for mapping, ignore the pad until everything is released
+  if (listening && ctrlTab.startsWith("pad")) padWaitRelease = true;
+  if (padWaitRelease) { if (pressed.size === 0 && !listening) padWaitRelease = false; padPrev = [...pressed]; requestAnimationFrame(padLoop); return; }
+
+  for (const b of pressed) if (!padPrev.includes(b)) {
+    onPad(b);
+    if (["up", "down", "left", "right"].includes(b)) { padHeld = b; padNext = now + 380; }
+  }
+  if (padHeld && pressed.has(padHeld) && now >= padNext) { onPad(padHeld); padNext = now + 110; }   // auto-repeat
+  if (padHeld && !pressed.has(padHeld)) padHeld = null;
+  padPrev = [...pressed];
+  requestAnimationFrame(padLoop);
+}
+window.addEventListener("gamepadconnected", () => toast("Controller connected: use the stick and A / B"));
+requestAnimationFrame(padLoop);
+
+// ================================================================ start
+(async function init() {
+  S = await call("getState");
+  setLang(S.app.lang || systemLang());
+  S.ifaces = [...new Set([...(S.interfaces || []), S.cfg.client.iface, S.cfg.lm.iface].filter(Boolean))];
+  for (const s of $$(".iface-sel")) s.innerHTML = [...new Set([...S.ifaces, S.n2n.iface].filter(Boolean))].map(n => `<option>${esc(n)}</option>`).join("");
+  bindForm();
+  const st = $("#n2n-static"); st.checked = !S.n2n.dhcp; st.onchange = () => { S.n2n.dhcp = !st.checked; changed(); };
+  renderCats(); renderOpts(); renderQuick(); renderOverlayBanner();
+  setBackground(S.background);
+  const mmOk = !!S.files.modManager;
+  $("#mm-open").disabled = !mmOk; $("#mm-sync").disabled = !mmOk; $("#sync-mods").disabled = !mmOk;
+  if (!mmOk) $("#mm-status").textContent = t("EXVSIB_Mod_Manager.exe isn't in the game folder");
+  $("#server-path").textContent = S.files.server ? "" : t("Server.exe not found in the game folder");
+  $("#server-start").disabled = !S.files.server; $("#n2n-start").disabled = !S.files.edge;
+  if (!S.files.client) toast("vsac29_Release.exe not found: put the launcher in the game folder", true);
+  refreshDevices();
+  poll();
+})();
+window.addEventListener("beforeunload", () => { clearTimeout(saveTimer); call("saveState", forHost()); });
+</script>
+</body>
+</html>

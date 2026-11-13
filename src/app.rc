@@ -1,0 +1,4 @@
+// Resources: manifest, icon and the embedded EXVS Overlay DLL (Settings > In-game overlay > Install).
+1 24 "app.manifest"
+APPICON ICON "../build/gen/app.ico"
+OVERLAY_DLL RCDATA "../build/gen/xinput9_1_0.dll"
