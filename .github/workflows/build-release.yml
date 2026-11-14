@@ -1,0 +1,138 @@
+# Builds "EXVS Launcher.exe" on GitHub and prepares the release.
+#
+#   git tag v1.0.0 && git push origin v1.0.0      (on main, after merging the Release/x.y.z branch)
+#
+# The exe bundles EXVS Overlay. The overlay version comes from overlay-version.txt: the workflow checks out
+# furshow/EXVSOverlay at tag v<that version> (the launcher reads OVERLAY_VERSION from its src/menu.h) and
+# downloads xinput9_1_0.dll from that PUBLISHED overlay release, so the bundled DLL is byte for byte the one
+# the overlay's updater installs. Publish the overlay release first. (Run by hand, if that release isn't
+# published yet, the overlay is built from the tag instead.)
+#
+# A tag build creates a DRAFT release of that tag with "EXVS Launcher.exe" attached and the notes of that
+# version from CHANGELOG.md (or from docs/release_notes/v<version>.md if that file exists). Review / edit
+# the notes on GitHub and press "Publish release": only then does the launcher's updater see it.
+#
+# Run by hand (Actions -> Build release -> Run workflow) it only builds: the exe is in the run's
+# "Artifacts" section, to test a build without making a release.
+name: Build release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  OVERLAY_REPO: furshow/EXVSOverlay
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      overlay: ${{ steps.v.outputs.overlay }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version (and tag must match it)
+        id: v
+        run: |
+          version=$(sed -n 's/^static const char \*VERSION = "\(.*\)";/\1/p' src/main.cpp)
+          overlay=$(tr -d ' \r\n' < overlay-version.txt)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "overlay=$overlay" >> "$GITHUB_OUTPUT"
+          echo "launcher $version, bundles overlay $overlay"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION \"$version\" in src/main.cpp. The updater compares the tag, so users would be offered the wrong version."
+            exit 1
+          fi
+
+  windows:
+    needs: check
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      PY: python
+      EXVS_OVERLAY_DIR: overlay     # relative to the repo root (build.sh runs there)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check out EXVS Overlay ${{ needs.check.outputs.overlay }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OVERLAY_REPO }}
+          ref: v${{ needs.check.outputs.overlay }}
+          path: overlay
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install zig and Pillow
+        run: python -m pip install ziglang==0.16.0 Pillow
+      - name: Get xinput9_1_0.dll from the overlay release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v='${{ needs.check.outputs.overlay }}'
+          mkdir -p overlay/build
+          if gh release download "v$v" --repo "$OVERLAY_REPO" --pattern xinput9_1_0.dll --dir overlay/build; then
+            echo "Using the published EXVS Overlay $v release"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "::error::EXVS Overlay v$v has no published release with xinput9_1_0.dll. Publish the overlay release first (a draft is not visible here)."
+            exit 1
+          else
+            echo "::warning::No published EXVS Overlay v$v release: building the overlay from its tag (test build only)."
+            (cd overlay && bash build.sh)
+          fi
+          grep -q -a "EXVSOverlayVersion=$v;" overlay/build/xinput9_1_0.dll || { echo "::error::The overlay DLL does not say version $v"; exit 1; }
+      - name: Build EXVS Launcher.exe
+        run: bash build.sh
+      - name: Check the exe
+        run: |
+          ls -la "build/EXVS Launcher.exe"
+          v='${{ needs.check.outputs.version }}'
+          grep -q -a "$v" "build/EXVS Launcher.exe" || { echo "::error::The exe does not contain version $v"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: build/EXVS Launcher.exe
+          if-no-files-found: error
+
+  release:
+    needs: [check, windows]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Release notes
+        run: |
+          v='${{ needs.check.outputs.version }}'
+          if [ -f "docs/release_notes/v$v.md" ]; then
+            cp "docs/release_notes/v$v.md" notes.md
+          else                       # the "## [x.y.z]" section of CHANGELOG.md, without its heading
+            awk -v v="$v" '
+              /^## \[/ { if (on) exit; if (index($0, "## [" v "]") == 1) { on = 1; next } }
+              on' CHANGELOG.md > notes.md
+          fi
+          [ -s notes.md ] || echo "EXVS Launcher $v" > notes.md
+          cat notes.md
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          ls -la files
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" files/* --clobber          # already made (by hand or a re-run): only the files
+          else
+            gh release create "$tag" files/* --draft --verify-tag \
+              --title "EXVS Launcher ${{ needs.check.outputs.version }}" --notes-file notes.md
+          fi
+          echo "::notice::Draft release ready: review it and press Publish -> https://github.com/$GITHUB_REPOSITORY/releases"
