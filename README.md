@@ -81,6 +81,11 @@ To publish a version:
    and creates a draft release with `EXVS Launcher.exe` and the CHANGELOG notes. Review it and press **Publish**:
    from then on the launcher's updater offers it. The release notes are shown in the update window.
 
+## Support
+If this launcher is useful to you, you can support its development. It's optional, and everything stays free.
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/N3L02AMSOT)
+
 ## License
 MIT, see [LICENSE](LICENSE). Third-party code is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 Fan-made tool, not affiliated with Bandai Namco or Sunrise. No game files are included.
