@@ -10,6 +10,7 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <shellapi.h>
+#include <shlwapi.h>
 #include <commdlg.h>
 #include <iphlpapi.h>
 #include <tlhelp32.h>
@@ -17,6 +18,7 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <string>
@@ -31,7 +33,7 @@
 #include "overlay_version.h"   // OVERLAY_BUNDLED_VERSION, generated from ../EXVSOverlay/src/menu.h
 
 using json = nlohmann::json;
-static const char *VERSION = "1.8.0";
+static const char *VERSION = "1.10.0";
 
 // ---------------------------------------------------------------------------------------------
 // strings / paths
@@ -219,9 +221,22 @@ static json image_data_url(const std::wstring &p) {
     return std::string("data:") + mime + ";base64," + base64(data);
 }
 
+#include "update.h"   // self-update from the GitHub releases
+
 static bool overlay_installed() { return exists(path_of(L"xinput9_1_0.dll")); }
 
-// "missing", "current" (same bytes as the overlay inside this launcher) or "outdated"
+// Version of an overlay DLL from its "EXVSOverlayVersion=x.y.z;" marker (0.13.0 and later), else "".
+static std::string overlay_file_version(const char *data, size_t n) {
+    static const char tag[] = "EXVSOverlayVersion=";
+    const char *end = data + n, *p = std::search(data, end, tag, tag + sizeof(tag) - 1);
+    if (p == end) return "";
+    p += sizeof(tag) - 1;
+    const char *q = p; while (q < end && q - p < 24 && *q != ';' && *q) q++;
+    return std::string(p, q);
+}
+
+// "missing", "current" (same bytes or same version as the overlay inside this launcher), "outdated",
+// or "newer" (the overlay updated itself past the bundled one: nothing to offer)
 static const char *overlay_status() {
     std::wstring p = path_of(L"xinput9_1_0.dll");
     if (!exists(p)) return "missing";
@@ -232,13 +247,15 @@ static const char *overlay_status() {
     HANDLE f = CreateFileW(p.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
     if (f == INVALID_HANDLE_VALUE) return "current";
     LARGE_INTEGER fs; GetFileSizeEx(f, &fs);
-    bool same = fs.QuadPart == size;
-    if (same) {
-        std::vector<char> buf(size); DWORD rd = 0;
-        same = ReadFile(f, buf.data(), size, &rd, NULL) && rd == size && memcmp(buf.data(), data, size) == 0;
-    }
+    std::vector<char> buf(fs.QuadPart > 0 && fs.QuadPart < (64ll << 20) ? (size_t)fs.QuadPart : 0); DWORD rd = 0;
+    bool read = !buf.empty() && ReadFile(f, buf.data(), (DWORD)buf.size(), &rd, NULL) && rd == buf.size();
     CloseHandle(f);
-    return same ? "current" : "outdated";
+    if (!read) return "outdated";
+    if (buf.size() == size && memcmp(buf.data(), data, size) == 0) return "current";
+    std::string installed = overlay_file_version(buf.data(), buf.size());
+    if (installed.empty()) return "outdated";   // 0.12.0 or older
+    int c = cmp_version(installed, OVERLAY_BUNDLED_VERSION);
+    return c > 0 ? "newer" : c == 0 ? "current" : "outdated";
 }
 
 static json get_state() {
@@ -288,9 +305,12 @@ static json get_state() {
     }
     s["keyboard"] = kb;
     json pads = json::array();
+    const char *layout_keys[] = { "Pad1Layout", "Pad2Layout" };
+    int pad_i = 0;
     for (const char *sec : { "Game_Controller", "Game_Controller_1" }) {
         json p = json::object();
         for (const char *key : PAD_KEYS) p[key] = sl.get(sec, key);
+        p["Layout"] = me.get("Controller", layout_keys[pad_i++]);   // "" auto, "native", "custom"
         pads.push_back(p);
     }
     s["controller"] = pads;
@@ -305,7 +325,9 @@ static json get_state() {
     bool sc = sl.getb("AppSettings", "StartClient", true), slm = sl.getb("AppSettings", "StartLM", false);
     s["app"] = { {"mode", sc && slm ? "both" : slm ? "lm" : "client"},
                  {"syncMods", me.getb("Launcher", "SyncMods", false)}, {"closeOnPlay", me.getb("Launcher", "CloseOnPlay", false)},
-                 {"lang", me.get("Launcher", "Language")} };   // "" = follow the Windows language
+                 {"streamer", me.getb("Launcher", "StreamerMode", false)},
+                 {"lang", me.get("Launcher", "Language")},   // "" = follow the Windows language
+                 {"autoUpdate", me.getb("Launcher", "CheckUpdates", true)}, {"updatesEnabled", updates_enabled()} };
     s["interfaces"] = list_interfaces();
     {   // main monitor, to recommend a resolution
         MONITORINFO mi = { sizeof(mi) };
@@ -391,6 +413,7 @@ static void save_state(const json &s) {
     for (int i = 0; i < 2 && i < (int)s["controller"].size(); i++) {
         const json &p = s["controller"][i];
         for (const char *key : PAD_KEYS) if (p.contains(key)) set_if_needed(sl, pad_secs[i], key, js(p, key));
+        if (p.contains("Layout")) me.set("Controller", i == 0 ? "Pad1Layout" : "Pad2Layout", js(p, "Layout"));
     }
 
     const json &n = s.at("n2n");
@@ -411,7 +434,9 @@ static void save_state(const json &s) {
     sl.set("AppSettings", "StartLM", tf(mode != "client"));
     me.set("Launcher", "SyncMods", tf(jb(a, "syncMods", false)));
     me.set("Launcher", "CloseOnPlay", tf(jb(a, "closeOnPlay", false)));
+    me.set("Launcher", "StreamerMode", tf(jb(a, "streamer", false)));
     if (!js(a, "lang").empty()) me.set("Launcher", "Language", js(a, "lang"));
+    me.set("Launcher", "CheckUpdates", tf(jb(a, "autoUpdate", true)));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -444,6 +469,12 @@ static void write_buttons(const Ini &ini, const char *sec, const json &k, bool c
     }
     set_or_del(ini, sec, "D", g("ButtonD"));
     for (const char *key : { "Start", "Coin", "Card" }) set_or_del(ini, sec, key, join_keys({ g(key) }));
+}
+
+// Same test as SnowLauncher: these names use the game's native XInput support.
+static bool pad_is_xinput(std::string name) {
+    for (auto &ch : name) ch = (char)tolower((unsigned char)ch);
+    return name.find("xbox") != std::string::npos || name.find("x-box") != std::string::npos || name.find("xinput") != std::string::npos;
 }
 
 static void write_game_files(const json &s) {
@@ -485,22 +516,28 @@ static void write_game_files(const json &s) {
         write_buttons(ini, "keyboard", k, !lm);
 
         if (!lm && s["controller"].size() >= 2) {
-            const json &p = s["controller"][0];
-            ini.set("controller", "Enabled", tf(truthy(js(p, "Enabled"))));
-            if (!js(p, "Name").empty()) ini.set("controller", "Name", js(p, "Name"));
-            write_buttons(ini, "controller", p, true);
-            const char *opt[][2] = { {"Test", "TestBool"}, {"Service", "ServiceBool"}, {"Kill", "KillBool"} };
-            for (auto &o : opt) {
-                if (truthy(js(p, o[1])) && !js(p, o[0]).empty()) ini.set("controller", o[0], join_keys({ js(p, o[0]) }));
-                else ini.del("controller", o[0]);
+            // [controller] = Controller 1, [controller-1] = Controller 2 (the loader, bngrw.dll, reads both the same way).
+            // Xbox / XInput pads: Mode = xinput-native, the game reads the pad itself with its own layout (like SnowLauncher),
+            // unless the player picked "Custom buttons" (Layout = custom): then, like any other pad, it goes through
+            // DirectInput with the button numbers mapped in the launcher.
+            const char *pad_sec[] = { "controller", "controller-1" };
+            for (int i = 0; i < 2; i++) {
+                const json &p = s["controller"][i];
+                const char *sec = pad_sec[i];
+                std::string name = js(p, "Name");
+                ini.set(sec, "Enabled", tf(truthy(js(p, "Enabled"))));
+                if (!name.empty()) ini.set(sec, "Name", name);
+                std::string layout = js(p, "Layout");
+                bool native = layout == "native" || (layout != "custom" && pad_is_xinput(name));
+                if (native) ini.set(sec, "Mode", "xinput-native");
+                else ini.del(sec, "Mode");
+                write_buttons(ini, sec, p, true);
+                const char *opt[][2] = { {"Test", "TestBool"}, {"Service", "ServiceBool"}, {"Kill", "KillBool"} };
+                for (auto &o : opt) {
+                    if (truthy(js(p, o[1])) && !js(p, o[0]).empty()) ini.set(sec, o[0], join_keys({ js(p, o[0]) }));
+                    else ini.del(sec, o[0]);
+                }
             }
-            const json &p1 = s["controller"][1];
-            std::string n1 = js(p1, "Name"), low = n1;
-            for (auto &ch : low) ch = (char)tolower((unsigned char)ch);
-            ini.set("controller-1", "Enabled", tf(truthy(js(p1, "Enabled"))));
-            if (!n1.empty()) ini.set("controller-1", "Name", n1);
-            if (low.find("xbox") != std::string::npos || low.find("x-box") != std::string::npos || low.find("xinput") != std::string::npos)
-                ini.set("controller-1", "Mode", "xinput-native");
         }
     }
     Ini card(L"card.ini");
@@ -729,34 +766,49 @@ static std::vector<DevInfo> list_devices() {
     g_di->EnumDevices(DI8DEVCLASS_GAMECTRL, enum_dev_cb, &v, DIEDFL_ATTACHEDONLY);
     return v;
 }
+// Listens to every attached controller at once and returns the first button pressed, with the name of the
+// controller it came from (the UI switches the device to it: the loader finds the pad by that name).
+// Watching only the selected device failed when its name didn't match (e.g. a GP2040-CE in PS3 mode plugged
+// in after the list was read): the first device in the list was used instead and the presses never showed up.
 static json capture_button(const std::string &name, int timeout_ms) {
     auto devs = list_devices();
     if (devs.empty()) return { {"error", "No controller found"} };
-    const DevInfo *d = &devs[0];
-    for (auto &x : devs) if (x.name == name) { d = &x; break; }
-    IDirectInputDevice8W *dev = NULL;
-    if (FAILED(g_di->CreateDevice(d->guid, &dev, NULL))) return { {"error", "Could not open the controller"} };
-    dev->SetDataFormat(&c_dfDIJoystick2);
-    dev->SetCooperativeLevel(g_hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
-    dev->Acquire();
-    DIJOYSTATE2 st, base; memset(&base, 0, sizeof(base));
-    dev->Poll(); dev->GetDeviceState(sizeof(base), &base);
+    struct Open { IDirectInputDevice8W *dev; std::string name; DIJOYSTATE2 base; };
+    std::vector<Open> open;
+    for (auto &d : devs) {
+        IDirectInputDevice8W *dev = NULL;
+        HRESULT hr = g_di->CreateDevice(d.guid, &dev, NULL);
+        if (FAILED(hr)) { log_line("capture: can't open '%s' (0x%08lx)", d.name.c_str(), (unsigned long)hr); continue; }
+        if (FAILED(hr = dev->SetDataFormat(&c_dfDIJoystick2))) { log_line("capture: SetDataFormat '%s' failed (0x%08lx)", d.name.c_str(), (unsigned long)hr); dev->Release(); continue; }
+        if (FAILED(dev->SetCooperativeLevel(g_hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
+            dev->SetCooperativeLevel(NULL, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
+        hr = dev->Acquire();
+        if (FAILED(hr)) log_line("capture: Acquire '%s' failed (0x%08lx)", d.name.c_str(), (unsigned long)hr);
+        Open o = { dev, d.name, {} };
+        dev->Poll(); dev->GetDeviceState(sizeof(o.base), &o.base);
+        open.push_back(o);
+    }
+    if (open.empty()) return { {"error", "Could not open the controller"} };
+    log_line("capture: listening to %zu controller(s), selected '%s'", open.size(), name.c_str());
     json result = { {"error", "No button pressed"} };
     g_capture_cancel = false;
-    for (int t = 0; t < timeout_ms / 15 && !g_capture_cancel; t++) {
+    for (int t = 0; t < timeout_ms / 15 && !g_capture_cancel && result.contains("error"); t++) {
         Sleep(15);
-        if (FAILED(dev->Poll())) dev->Acquire();
-        if (FAILED(dev->GetDeviceState(sizeof(st), &st))) continue;
-        int hit = -1;
-        for (int b = 0; b < 128; b++) {
-            bool now = st.rgbButtons[b] & 0x80, before = base.rgbButtons[b] & 0x80;
-            if (now && !before) { hit = b; break; }
-            if (!now && before) base.rgbButtons[b] = 0;   // released: allow it next time
+        for (auto &o : open) {
+            DIJOYSTATE2 st;
+            if (FAILED(o.dev->Poll())) o.dev->Acquire();
+            if (FAILED(o.dev->GetDeviceState(sizeof(st), &st))) continue;
+            int hit = -1;
+            for (int b = 0; b < 128; b++) {
+                bool now = st.rgbButtons[b] & 0x80, before = o.base.rgbButtons[b] & 0x80;
+                if (now && !before) { hit = b; break; }
+                if (!now && before) o.base.rgbButtons[b] = 0;   // released: allow it next time
+            }
+            if (hit >= 0) { result = { {"button", hit + 1}, {"device", o.name} }; log_line("capture: button %d on '%s'", hit + 1, o.name.c_str()); break; }
         }
-        if (hit >= 0) { result = { {"button", hit + 1} }; break; }
     }
     if (g_capture_cancel) result = { {"cancelled", true} };
-    dev->Unacquire(); dev->Release();
+    for (auto &o : open) { o.dev->Unacquire(); o.dev->Release(); }
     return result;
 }
 
@@ -831,15 +883,25 @@ static int selftest(const wchar_t *dir, const wchar_t *out) {
     return 0;
 }
 
+static HANDLE g_mtx;   // single instance
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     int argc; wchar_t **argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (argc >= 4 && wcscmp(argv[1], L"--selftest") == 0) return selftest(argv[2], argv[3]);
+    if (argc >= 3 && wcscmp(argv[1], L"--update-test") == 0) {   // --update-test <out.json> [install]: check (+ download and swap), no window
+        init_dir(NULL);
+        json r = { {"check", check_update()} };
+        if (argc >= 4 && r["check"].value("available", false)) r["install"] = install_update();
+        FILE *f = _wfopen(argv[2], L"wb"); if (!f) return 2;
+        std::string t = r.dump(2); fwrite(t.data(), 1, t.size(), f); fclose(f);
+        return 0;
+    }
     // --uitest <game dir> <out.json>: load the real UI in a hidden window, exercise it, write a report
     bool uitest = argc >= 4 && wcscmp(argv[1], L"--uitest") == 0;
     std::wstring uitest_out = uitest ? argv[3] : L"";
     init_dir(uitest || (argc >= 3 && wcscmp(argv[1], L"--game-dir") == 0) ? argv[2] : NULL);
 
-    HANDLE mtx = uitest ? NULL : CreateMutexW(NULL, TRUE, L"EXVSLauncher.SingleInstance");
+    g_mtx = uitest ? NULL : CreateMutexW(NULL, TRUE, L"EXVSLauncher.SingleInstance");
     if (!uitest && GetLastError() == ERROR_ALREADY_EXISTS) {
         HWND other = FindWindowW(NULL, L"EXVS Launcher");
         if (other) { ShowWindow(other, SW_RESTORE); SetForegroundWindow(other); }
@@ -847,6 +909,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     log_line("---- EXVS Launcher %s started in %s", VERSION, narrow(g_dir).c_str());
+    if (!uitest) cleanup_update_files();
 
     try {
         HWND test_parent = NULL;
@@ -914,7 +977,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             json log = json::array();
             for (size_t i = from; i < g_log.size(); i++) log.push_back(g_log[i]);
             json st = { {"client", !find_procs(CLIENT_EXE, true).empty()}, {"lm", !find_procs(LM_EXE, true).empty()},
-                        {"server", server_running()}, {"busy", g_busy}, {"log", log}, {"logTotal", g_log.size()},
+                        {"server", server_running()}, {"busy", g_busy}, {"update", update_progress()}, {"log", log}, {"logTotal", g_log.size()},
                         {"n2n", { {"running", (bool)g_n2n_running}, {"connected", (bool)g_n2n_connected}, {"ip", g_n2n_ip} }} };
             return st.dump();
         });
@@ -949,6 +1012,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             return capture_button(name, timeout);
         });
         w.bind("cancelCapture", [](const std::string &) { g_capture_cancel = true; return std::string("{}"); });
+        async("checkUpdate", [uitest](json) { return uitest ? json({ {"ok", true}, {"available", false}, {"disabled", true} }) : check_update(); });
+        async("installUpdate", [&w](json) {
+            if (game_running()) return json({ {"ok", false}, {"error", "Close the game before updating the launcher"} });
+            json r = install_update();
+            if (!r.value("ok", false)) return r;
+            if (g_mtx) { ReleaseMutex(g_mtx); CloseHandle(g_mtx); g_mtx = NULL; }
+            if (!start_new_launcher()) { r = { {"ok", false}, {"error", "Updated. Start EXVS Launcher again to use the new version."} }; return r; }
+            std::thread([&w] { Sleep(700); w.dispatch([&w] { w.terminate(); }); }).detach();
+            return r;
+        });
         async("installOverlay", [](json) { return install_overlay(); });
         async("removeOverlay", [](json) { return remove_overlay(); });
         w.bind("pickBackground", [](const std::string &) { return pick_background().dump(); });
@@ -980,6 +1053,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     // keep N2N up if the game is still running (closing the launcher must not drop an online match)
     if (g_n2n_running && !game_running()) n2n_stop();
-    ReleaseMutex(mtx);
+    if (g_mtx) ReleaseMutex(g_mtx);
     return 0;
 }

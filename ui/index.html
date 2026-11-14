@@ -110,6 +110,13 @@ select option { background: #0b0f19; }
 .ov-banner .btn { padding: 6px 14px; }
 .ov-x { border: 0; background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; padding: 4px 6px; }
 .ov-x:hover { color: var(--text); }
+.up-notes { text-align: left; max-height: 46vh; overflow-y: auto; margin: 14px 0 4px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line); color: #c3cde2; font-size: 13px; line-height: 1.55; }
+.up-notes h4 { margin: 10px 0 4px; font: 600 12px var(--head); letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-hi); }
+.up-notes h4:first-child { margin-top: 0; }
+.up-notes p { margin: 3px 0 !important; color: #c3cde2 !important; }
+.cr-box .up-btns { display: flex; gap: 10px; justify-content: center; }
+.cr-box .up-btns .btn { margin-top: 14px; }
 .busy { margin-top: 14px; color: var(--amber); min-height: 20px; font-size: 13px; }
 
 /* ---------- settings: game-menu style ---------- */
@@ -257,6 +264,9 @@ body.pad .pad-hint { display: block; }
         <div class="ov-banner" id="ov-banner" style="display:none">
           <span class="ov-ico">◆</span><span id="ov-text"></span><button class="btn primary" id="ov-btn"></button><button class="ov-x" id="ov-x" title="Hide">✕</button>
         </div>
+        <div class="ov-banner" id="up-banner" style="display:none">
+          <span class="ov-ico">▲</span><span id="up-text"></span><button class="btn" id="up-notes-btn">What's new</button><button class="btn primary" id="up-btn">Update</button><button class="ov-x" id="up-x" title="Skip this version">✕</button>
+        </div>
         <div class="busy" id="busy"></div>
       </div>
       <div class="pad-hint"><span class="gb sh">START</span>Play &nbsp; <span class="gb x">X</span>Mode &nbsp; <span class="gb sh">LT</span><span class="gb sh">RT</span>Pages</div>
@@ -334,6 +344,14 @@ body.pad .pad-hint { display: block; }
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<div class="credits" id="upd" style="display:none">
+  <div class="cr-box">
+    <div class="cr-title" id="upd-title"></div>
+    <div class="cr-ver" id="upd-ver"></div>
+    <div class="up-notes" id="upd-notes"></div>
+    <div class="up-btns"><button class="btn" id="upd-later">Later</button><button class="btn primary" id="upd-go">Update now</button></div>
+  </div>
+</div>
 <div class="credits" id="credits" style="display:none">
   <div class="cr-box">
     <div class="cr-mark"><!--LOGO--></div>
@@ -378,7 +396,7 @@ function t(s, vars) {
   return r;
 }
 window.__i18nMissing = lang => [...I18N_SEEN].filter(k => !(window.I18N && I18N[lang] && I18N[lang][k]) && /[A-Za-z]{2}/.test(k));
-const NO_I18N = "script, style, #opts, #info, #cats, #ctrl-body, #n2n-log, .iface-sel, #q-display, #q-res, #q-card, #q-server, #cr-ver, .cr-name, #ov-text, #toast, svg";
+const NO_I18N = "script, style, #opts, #info, #cats, #ctrl-body, #n2n-log, .iface-sel, #q-display, #q-res, #q-card, #q-server, #cr-ver, .cr-name, #ov-text, #up-text, #upd-title, #upd-ver, #upd-notes, #toast, svg";
 function translateStatic() {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -410,7 +428,7 @@ const mock = {
   state: {
     version: "1.1.0", gameDir: "C:\\Games\\EXVSIB", monitor: { w: 1920, h: 1080 },
     files: { client: true, lm: true, edge: true, server: true, modManager: true, overlay: true, overlayStatus: "outdated", overlayVersion: "0.10.0" },
-    cfg: { chipId: "Player1", accessCode: "0000", serial: "XXXX", server: "https://card.gexvslt.com/", region: 40, openingSkip: 3, bootToken: "",
+    cfg: { chipId: "Player1", accessCode: "0000", serial: "XXXX", server: "", region: 40, openingSkip: 3, bootToken: "",
       disableSocketHook: false, enableQuickSkinChange: true, framerateLimit: true, useRealCardReader: false, cardReaderComPort: "",
       client: { window: 0, resolution: 2, iface: "Gundam", ipRun: false, ip: "192.168.1.10" }, lm: { window: 9, resolution: 2, iface: "Gundam", ipRun: false, ip: "" } },
     keyboard: { client: { Enabled: "True", Up: "I", Down: "K", Left: "J", Right: "L", ButtonA: "A", ButtonB: "D", ButtonC: "S", ButtonD: "W", ButtonAB: "Q", ButtonBC: "Z", ButtonAC: "E", ButtonABC: "C", Coin: "1", Card: "F3", Kill: "F4", Start: "B", Test: "F2" },
@@ -418,7 +436,7 @@ const mock = {
     controller: [{ Enabled: "False", Name: "Wireless Controller", ButtonA: "1", ButtonB: "4", ButtonC: "2", ButtonD: "3", ButtonAB: "6", ButtonBC: "8", ButtonAC: "7", ButtonABC: "12", Coin: "14", Card: "13", Start: "10,5", Test: "9", Service: "15", Kill: "13", TestBool: "True", ServiceBool: "False", KillBool: "False" },
       { Enabled: "False", Name: "Controller (Xbox One For Windows)", ButtonA: "1,5", ButtonB: "4", ButtonC: "2", ButtonD: "3", Coin: "14", Card: "14", Start: "10,11", Test: "9" }],
     n2n: { host: "", community: "", playerName: "Player1", virtualIp: "", dhcp: true, relay: false, noPortForwarding: false, multicast: true, iface: "N2N", conf: "" },
-    app: { mode: "client", syncMods: false, closeOnPlay: false },
+    app: { mode: "client", syncMods: false, closeOnPlay: false, streamer: false },
     interfaces: ["Gundam", "Ethernet", "Wi-Fi", "N2N", "N2N-LM"], background: null,
   },
   status: { client: false, lm: false, server: false, n2n: { running: false, connected: false, ip: "" }, log: [], busy: "" },
@@ -428,6 +446,8 @@ async function call(name, ...args) {
   switch (name) {
     case "getState": return JSON.parse(JSON.stringify(mock.state));
     case "getStatus": return mock.status;
+    case "checkUpdate": return { ok: true, available: true, current: mock.state.version, version: "1.9.1", size: 2400000,
+      notes: "## What's new\n- **Automatic updates** for the launcher and the overlay.\n- Fixes.\n\nThanks for playing!" };
     case "listControllers": return [{ name: "Controller (Xbox One For Windows)", xinput: true }, { name: "Wireless Controller", xinput: false }];
     default: return { ok: true };
   }
@@ -437,11 +457,13 @@ async function call(name, ...args) {
 const RES = [ // index = SnowLauncher PCB_Resolution
   { label: "4K", px: "3840 × 2160", h: 2160 }, { label: "2K", px: "2560 × 1440", h: 1440 }, { label: "1080p", px: "1920 × 1080", h: 1080 },
   { label: "720p", px: "1280 × 720", h: 720 }, { label: "480p", px: "854 × 480", h: 480 }, { label: "240p", px: "426 × 240", h: 240 }, { label: "144p", px: "256 × 144", h: 144 }];
-const RES_ORDER = [3, 2, 1, 0];                 // offered in the menu: 720p → 4K
+const RES_ORDER = [3, 2, 1, 0];                 // candidates for the ★ recommendation: 720p → 4K
+const RES_MENU = [6, 5, 4, 3, 2, 1, 0];         // offered in the menu: every SnowLauncher resolution, 144p → 4K
 const WIN = ["Fullscreen", "Fullscreen (keep taskbar)", "3840×2160", "3440×1440", "3200×1800", "2560×1440", "2560×1080", "2048×1536", "1920×1200", "1920×1080",
   "1920×823", "1792×768", "1680×1050", "1680×945", "1600×1200", "1440×900", "1440×810", "1400×1050", "1280×1024", "1280×960", "1280×800", "1280×720",
   "800×640", "800×600", "640×480", "320×240"];
 const WIN_169 = [2, 4, 5, 9, 13, 16, 21];      // 16:9 window sizes (the game renders 16:9)
+const WIN_SIZES = WIN.map((_, i) => i).filter(i => i >= 2);   // every SnowLauncher window size
 const REGIONS = ["Aichi", "Aomori", "Akita", "Ishikawa", "Ibaraki", "Iwate", "Ehime", "Oita", "Osaka", "Okayama", "Okinawa", "Kagawa", "Kagoshima", "Kanagawa",
   "Gifu", "Kyoto", "Kumamoto", "Gunma", "Kochi", "Saitama", "Saga", "Shiga", "Shizuoka", "Shimane", "Chiba", "Tokyo", "Tokushima", "Tochigi", "Tottori",
   "Toyama", "Nagasaki", "Nagano", "Nara", "Niigata", "Hyogo", "Hiroshima", "Fukui", "Fukuoka", "Fukushima", "Hokkaido", "Mie", "Miyagi", "Miyazaki",
@@ -523,14 +545,16 @@ function displayOptions(side, who) {
     { section: who },
     cycle({ label: "Display mode", desc: "Fullscreen covers the whole monitor. Keep taskbar leaves the Windows taskbar visible. Windowed lets you pick a window size.",
       values: () => ["Fullscreen", "Fullscreen (keep taskbar)", "Windowed"], get: () => winMode(S.cfg[side].window),
-      set: v => { S.cfg[side].window = v === 2 ? (WIN_169.includes(S.cfg[side].window) ? S.cfg[side].window : 21) : v; }, preview: () => screenPreview(side) }),
-    cycle({ label: "Window size", desc: "Size of the game window. 16:9 sizes match the game's picture.", visible: () => winMode(S.cfg[side].window) === 2,
-      values: () => WIN_169.map(i => WIN[i]), get: () => Math.max(0, WIN_169.indexOf(S.cfg[side].window)), set: v => { S.cfg[side].window = WIN_169[v]; },
+      set: v => { S.cfg[side].window = v === 2 ? (S.cfg[side].window >= 2 ? S.cfg[side].window : 21) : v; }, preview: () => screenPreview(side) }),
+    cycle({ label: "Window size", desc: "Size of the game window: every size SnowLauncher offers. 16:9 sizes match the game's picture; the others stretch it.", visible: () => winMode(S.cfg[side].window) === 2,
+      type: "select", values: () => WIN_SIZES.map(i => WIN[i] + (WIN_169.includes(i) ? "  · 16:9" : "")), get: () => Math.max(0, WIN_SIZES.indexOf(S.cfg[side].window)), set: v => { S.cfg[side].window = WIN_SIZES[v]; },
+      extra: () => WIN_169.includes(S.cfg[side].window) ? "" : `<p class="warn">${t("Not 16:9: the game's picture is stretched to fit this window.")}</p>`,
       preview: () => screenPreview(side) }),
     cycle({ label: "Resolution", desc: "The resolution the game renders at. Higher is sharper but needs a stronger GPU. It works best when it matches your monitor or the window size.",
-      values: () => RES_ORDER.map(i => RES[i].label + (i === recommendedRes() ? "  ★" : "")), get: () => Math.max(0, RES_ORDER.indexOf(S.cfg[side].resolution)),
-      set: v => { S.cfg[side].resolution = RES_ORDER[v]; },
-      extra: () => { const r = RES[S.cfg[side].resolution], m = S.monitor || {}; let h = `<p>${t("{px} pixels.", { px: r.px })}</p>`;
+      values: () => RES_MENU.map(i => RES[i].label + (i === recommendedRes() ? "  ★" : "")), get: () => Math.max(0, RES_MENU.indexOf(S.cfg[side].resolution)),
+      set: v => { S.cfg[side].resolution = RES_MENU[v]; },
+      extra: () => { const r = RES[S.cfg[side].resolution] || RES[2], m = S.monitor || {}; let h = `<p>${t("{px} pixels.", { px: r.px })}</p>`;
+        if (r.h < 720) h += `<p class="warn">${t("Very low resolution: blurry, but lighter for weak PCs.")}</p>`;
         if (m.h) h += r.h > m.h ? `<p class="warn">${t("Higher than your monitor ({w}×{h}): the 3D can end up in a corner.", { w: m.w, h: m.h })}</p>` : `<p class="rec">${t("★ Recommended for your monitor ({w}×{h}): {res}", { w: m.w, h: m.h, res: RES[recommendedRes()].label })}</p>`;
         return h; } }),
   ];
@@ -564,13 +588,13 @@ const CATS = {
   account: { title: "Account", items: () => [
     { section: "Player card" },
     { type: "text", label: "Card name", desc: "Your player card (chip ID). Your profile, rank and records are saved on it.", get: () => S.cfg.chipId, set: v => S.cfg.chipId = v.trim() },
-    { type: "password", label: "Access code", desc: "The PIN of your card.", get: () => S.cfg.accessCode, set: v => S.cfg.accessCode = v.trim() },
+    { type: "password", label: "Access code", desc: "The PIN of your card.", secret: () => S.app.streamer, get: () => S.cfg.accessCode, set: v => S.cfg.accessCode = v.trim() },
     { section: "Server" },
-    cycle({ label: "Card server", desc: "Where your card is stored. Local uses Server.exe on this PC (start it from Online). Custom lets you type any address.",
-      values: () => ["Online · card.gexvslt.com", "Local · this PC", "Custom"],
-      get: () => /gexvslt/i.test(S.cfg.server) ? 0 : /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:28080)?\/?$/i.test(S.cfg.server) ? 1 : 2,
-      set: v => { if (v === 0) S.cfg.server = "https://card.gexvslt.com/"; else if (v === 1) S.cfg.server = "127.0.0.1:28080"; else if (/gexvslt|127\.0\.0\.1|localhost/.test(S.cfg.server)) S.cfg.server = ""; } }),
-    { type: "text", label: "Server address", desc: "Exact address written to the game's config.", get: () => S.cfg.server, set: v => S.cfg.server = v.trim(), rerender: true },
+    cycle({ label: "Card server", desc: "Where your card is stored. Custom: type the address your group gave you. Local uses Server.exe on this PC (start it from Online).",
+      values: () => ["Custom", "Local · this PC"],
+      get: () => /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:28080)?\/?$/i.test(S.cfg.server) ? 1 : 0,
+      set: v => { if (v === 1) S.cfg.server = "127.0.0.1:28080"; else if (/127\.0\.0\.1|localhost/.test(S.cfg.server)) S.cfg.server = ""; } }),
+    { type: "text", label: "Server address", desc: "Exact address written to the game's config.", secret: () => S.app.streamer, get: () => S.cfg.server, set: v => S.cfg.server = v.trim(), rerender: true },
     { type: "text", label: "Serial", desc: "4 letters or numbers that identify this machine.", get: () => S.cfg.serial, set: v => S.cfg.serial = v.trim().slice(0, 4), maxlength: 4 },
   ]},
   advanced: { title: "Advanced", items: () => [
@@ -591,6 +615,9 @@ const CATS = {
     { section: "Language" },
     cycle({ label: "Language", desc: "Language of the launcher.", values: () => LANGS.map(l => l[1]),
       get: () => Math.max(0, LANGS.findIndex(l => l[0] === LANG)), set: v => { S.app.lang = LANGS[v][0]; setLang(S.app.lang); } }),
+    { section: "Privacy" },
+    toggle({ label: "Streamer mode", desc: "Hides your card server address and access code in the launcher, so you can show it on stream. The game still uses them as usual.",
+      get: () => !!S.app.streamer, set: v => { S.app.streamer = v; renderQuick(); } }),
     { section: "Look" },
     { type: "actions", label: "Background picture", desc: "Picture behind the Play screen (JPG, PNG or WEBP).",
       actions: [["Choose…", async () => { const r = await call("pickBackground"); if (r && r.dataUrl) setBackground(r.dataUrl); else if (r && r.error) toast(r.error, true); }],
@@ -598,6 +625,12 @@ const CATS = {
     { section: "Game folder" },
     { type: "actions", label: "Game folder", desc: () => S.gameDir, actions: [["Open folder", () => call("openFolder")]] },
     { type: "actions", label: "Force close the game", desc: "Closes the Client and Live Monitor right away.", actions: [["Close game", async () => { if (confirm(t("Force close the game?"))) await call("stopGame"); }, "danger"]] },
+    { section: "Updates" },
+    toggle({ label: "Check for updates at start", desc: "When the launcher opens it asks GitHub whether there is a newer version. Nothing is downloaded until you press Update. The update also brings the newest EXVS Overlay.",
+      get: () => S.app.autoUpdate !== false, set: v => S.app.autoUpdate = v }),
+    { type: "actions", label: "Launcher updates",
+      desc: () => upd ? t("Version {v} is available (you have {cur}).", { v: upd.version, cur: S.version }) : updChecked ? t("You have the latest version ({v}).", { v: S.version }) : t("You have version {v}.", { v: S.version }),
+      actions: () => upd ? [["Update now", () => startUpdate(), "primary"], ["What's new", () => openUpdateNotes()]] : [["Check now", () => checkForUpdate(true)]] },
     { section: "About" },
     { type: "actions", label: () => "EXVS Launcher " + S.version, desc: "Created by Furshow. Uses the same settings file as SnowLauncher (SnowLauncher.ini), so you can switch between both.",
       actions: [["Credits", () => openCredits()]] },
@@ -641,15 +674,17 @@ function renderOpts() {
       c.innerHTML = `<div class="onoff"><button data-v="0" class="${on ? "" : "on"}">${t("OFF")}</button><button data-v="1" class="${on ? "on" : ""}">${t("ON")}</button></div>`;
       c.querySelectorAll("button").forEach(b => b.onclick = () => { focusRow(idx); setToggle(idx, b.dataset.v === "1"); });
     } else if (it.type === "text" || it.type === "password") {
-      c.innerHTML = `<input type="${it.type}" ${it.maxlength ? `maxlength="${it.maxlength}"` : ""}>`;
+      const secret = !!(it.secret && it.secret());
+      c.innerHTML = `<input type="${secret ? "password" : it.type}" ${it.maxlength ? `maxlength="${it.maxlength}"` : ""} ${secret ? 'autocomplete="off"' : ""}>`;
       const inp = c.querySelector("input"); inp.value = it.get() ?? "";
       inp.oninput = () => { it.set(inp.value); changed(); };
       inp.onchange = () => { if (it.rerender) renderOpts(); };
       inp.onfocus = () => focusRow(idx, true);
-      if (it.type === "password") { inp.onmouseenter = () => inp.type = "text"; inp.onmouseleave = () => { if (document.activeElement !== inp) inp.type = "password"; }; inp.onblur = () => inp.type = "password"; }
+      if (it.type === "password" && !secret) { inp.onmouseenter = () => inp.type = "text"; inp.onmouseleave = () => { if (document.activeElement !== inp) inp.type = "password"; }; inp.onblur = () => inp.type = "password"; }
     } else if (it.type === "actions") {
-      c.innerHTML = `<div class="acts">${it.actions.map((a, i) => `<button class="btn ${a[2] || ""}" data-i="${i}">${esc(t(a[0]))}</button>`).join("")}</div>`;
-      c.querySelectorAll("button").forEach(b => b.onclick = () => it.actions[+b.dataset.i][1]());
+      const acts = val(it.actions);
+      c.innerHTML = `<div class="acts">${acts.map((a, i) => `<button class="btn ${a[2] || ""}" data-i="${i}">${esc(t(a[0]))}</button>`).join("")}</div>`;
+      c.querySelectorAll("button").forEach(b => b.onclick = () => acts[+b.dataset.i][1]());
     }
     el.onmouseenter = () => focusRow(idx, true);
     box.appendChild(el);
@@ -720,7 +755,7 @@ function renderControlsCat(box) {
   if (ctrlTab.startsWith("kb")) renderKeyboard(); else { padIdx = +ctrlTab.slice(3); renderPad(); }
   $("#info").innerHTML = ctrlTab.startsWith("kb")
     ? `<div class="k">${t("Controls")}</div><h3>${t("Keyboard")}</h3><p>${t("Click a key box and press the new key. Esc cancels, right-click clears.")}</p><p>${t("A+B, B+C, A+C and A+B+C are single keys that press several buttons at once.")}</p><p class="muted">${t("Close game (Kill) shuts the game down right away.")}</p>`
-    : `<div class="k">${t("Controls")}</div><h3>${t("Controller")}</h3><p>${t("Pick your controller, turn it on, then click an action and press the button on the controller. An action can have several buttons; pressing one that is already there removes it.")}</p><p class="muted">${t("Xbox controllers use the game's own XInput layout, so they don't need mapping. For Card and Coin on an Xbox controller use the EXVS Overlay (Graphics › In-game overlay).")}</p>`;
+    : `<div class="k">${t("Controls")}</div><h3>${t("Controller")}</h3><p>${t("Pick your controller, turn it on, then click an action and press the button on the controller. An action can have several buttons; pressing one that is already there removes it.")}</p><p class="muted">${t("Xbox controllers use the game's own layout by default. To choose your own buttons, set Button layout to Custom. Card and Coin can also go on a controller button with the EXVS Overlay (Graphics › In-game overlay).")}</p>`;
 }
 function renderKeyboard() {
   const side = ctrlTab === "kb-lm" ? "lm" : "client";
@@ -754,16 +789,21 @@ function renderPad() {
   const p = S.controller[padIdx] ??= {};
   const on = String(p.Enabled).toLowerCase() === "true";
   const names = [...new Set([...devices.map(d => d.name), p.Name].filter(Boolean))];
-  const xinput = /xbox|x-box|xinput/i.test(p.Name || "");
+  const isX = /xbox|x-box|xinput/i.test(p.Name || "");
+  const xinput = isX ? p.Layout !== "custom" : p.Layout === "native";   // true = the game's own Xbox layout, no mapping
+  const layoutRow = isX ? `<div class="opt" style="margin-bottom:14px"><div class="lbl">${t("Button layout")}<small>${t(xinput ? "The game's Xbox layout, nothing to set up" : "Your own buttons, set below")}</small></div>
+      <div class="c"><div class="onoff" id="pad-layout"><button data-v="native" class="${xinput ? "on" : ""}">${t("Game's")}</button><button data-v="custom" class="${xinput ? "" : "on"}">${t("Custom")}</button></div></div></div>` : "";
   $("#ctrl-body").innerHTML = `
     <div class="opt focus" style="margin-bottom:6px"><div class="lbl">${t("Controller {n}", { n: padIdx + 1 })}</div><div class="c"><div class="onoff"><button data-v="0" class="${on ? "" : "on"}">${t("OFF")}</button><button data-v="1" class="${on ? "on" : ""}">${t("ON")}</button></div></div></div>
-    <div class="opt" style="margin-bottom:14px"><div class="lbl">${t("Device")}<small>${t(xinput ? "Uses the game's native XInput layout" : names.length ? "Map the buttons below" : "Connect a controller and press Refresh")}</small></div>
-      <div class="c" style="display:flex;gap:8px"><select id="pad-device">${names.map(n => `<option ${n === p.Name ? "selected" : ""}>${esc(n)}</option>`).join("") || `<option value=''>${t("No controller found")}</option>`}</select><button class="btn" id="pad-refresh">${t("Refresh")}</button></div></div>
-    ${xinput ? "" : `<div class="keys">${PAD_ACTIONS.map(([k, label, boolKey]) => {
+    <div class="opt" style="margin-bottom:${isX ? 6 : 14}px"><div class="lbl">${t("Device")}<small>${t(isX ? "Xbox / XInput controller" : names.length ? "Map the buttons below" : "Connect a controller and press Refresh")}</small></div>
+      <div class="c" style="display:flex;gap:8px"><select id="pad-device" title="${esc(p.Name || "")}">${names.map(n => `<option ${n === p.Name ? "selected" : ""}>${esc(n)}</option>`).join("") || `<option value=''>${t("No controller found")}</option>`}</select><button class="btn" id="pad-refresh">${t("Refresh")}</button></div></div>
+    ${layoutRow}
+    ${xinput ? "" : (isX ? `<p class="muted" style="margin:0 0 10px 4px;font-size:12.5px">${t("Click an action, then press the button. LT and RT can't be used here: Windows reports both triggers as one axis.")}</p>` : "") + `<div class="keys">${PAD_ACTIONS.map(([k, label, boolKey]) => {
       const en = !boolKey || String(p[boolKey]).toLowerCase() === "true"; const v = en ? (p[k] || "") : "";
       return `<div class="key"><span>${esc(t(label))}</span><div class="cap ${v ? "" : "empty"}" data-key="${k}" data-bool="${boolKey || ""}">${v ? v.split(",").map(x => "B" + x.trim()).join(" ") : t("none")}</div></div>`; }).join("")}</div>`}`;
   $$("#ctrl-body .onoff button").forEach(b => b.onclick = () => { p.Enabled = b.dataset.v === "1" ? "True" : "False"; changed(); renderPad(); });
   $("#pad-device").onchange = e => { p.Name = e.target.value; changed(); renderPad(); };
+  $$("#pad-layout button").forEach(b => b.onclick = () => { p.Layout = b.dataset.v; changed(); renderPad(); });
   $("#pad-refresh").onclick = refreshDevices;
   for (const cap of $$("#ctrl-body .cap")) {
     cap.onclick = () => capturePad(cap);
@@ -778,6 +818,10 @@ async function capturePad(cap) {
   if (listening !== cap) return;
   listening = null;
   if (r && r.button) {
+    if (r.device && r.device !== p.Name) {   // pressed on another controller: use that one (its mapping starts from what was set)
+      p.Name = r.device; devices.some(d => d.name === r.device) || refreshDevices();
+      toast(t("Device set to {name}", { name: r.device }));
+    }
     const cur = (cap.dataset.bool && String(p[cap.dataset.bool]).toLowerCase() !== "true") ? [] : (p[k] || "").split(",").map(s => s.trim()).filter(Boolean);
     const b = String(r.button);
     p[k] = cur.includes(b) ? cur.filter(x => x !== b).join(",") : [...cur, b].join(",");
@@ -820,13 +864,74 @@ async function installOverlayNow() {
 $("#ov-btn").onclick = installOverlayNow;
 $("#ov-x").onclick = () => { try { localStorage.setItem("ovBannerHidden", S.files.overlayVersion + ":" + S.files.overlayStatus); } catch (e) {} renderOverlayBanner(); };
 
+// ================================================================ launcher updates
+let upd = null, updChecked = false, updating = false;
+const updSkipped = v => { try { return localStorage.getItem("updSkip") === v; } catch (e) { return false; } };
+async function checkForUpdate(manual) {
+  const r = await call("checkUpdate");
+  if (!r || r.ok === false) { if (manual) toast((r && r.error) || "Couldn't check for updates", true); return; }
+  updChecked = !r.disabled;
+  upd = r.available ? r : null;
+  if (manual) {
+    if (upd) { try { localStorage.removeItem("updSkip"); } catch (e) {} }
+    toast(r.disabled ? "Update checks are turned off (EXVS_NO_UPDATE)" : upd ? t("Version {v} is available", { v: upd.version }) : "You have the latest version");
+  }
+  renderUpdateBanner(); if (cat === "launcher" && curPage() === "settings") renderOpts();
+}
+function renderUpdateBanner(progress) {
+  const b = $("#up-banner");
+  if (!upd || (!updating && updSkipped(upd.version))) { b.style.display = "none"; return; }
+  b.style.display = "";
+  for (const id of ["#up-btn", "#up-x", "#up-notes-btn"]) $(id).style.display = updating ? "none" : "";
+  $("#up-text").innerHTML = updating
+    ? (progress && progress.total ? t("Downloading EXVS Launcher {v}… {a} / {b} MB", { v: esc(upd.version), a: (progress.done / 1e6).toFixed(1), b: (progress.total / 1e6).toFixed(1) })
+                                  : t("Downloading EXVS Launcher {v}…", { v: esc(upd.version) }))
+    : t("<b>EXVS Launcher {v}</b> is available (you have {cur}).", { v: esc(upd.version), cur: esc(S.version) });
+}
+function notesHtml(md) {   // the release notes: a few markdown bits, everything else as text
+  const inline = x => esc(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<b>$1</b>");
+  return (md || "").replace(/\r/g, "").split("\n").map(l => {
+    if (/^\s*#{1,6}\s+/.test(l)) return `<h4>${inline(l.replace(/^\s*#+\s+/, ""))}</h4>`;
+    if (/^\s*[-*]\s+/.test(l)) return `<p>• ${inline(l.replace(/^\s*[-*]\s+/, ""))}</p>`;
+    return l.trim() ? `<p>${inline(l)}</p>` : "";
+  }).join("") || `<p>${t("No notes for this version.")}</p>`;
+}
+const updOpen = () => $("#upd").style.display !== "none";
+function openUpdateNotes() {
+  if (!upd) return;
+  $("#upd-title").textContent = "EXVS LAUNCHER " + upd.version;
+  $("#upd-ver").textContent = t("You have {cur}. Download size {mb} MB.", { cur: S.version, mb: ((upd.size || 0) / 1e6).toFixed(1) });
+  $("#upd-notes").innerHTML = notesHtml(upd.notes);
+  $("#upd").style.display = "";
+}
+function closeUpdateNotes() { $("#upd").style.display = "none"; }
+async function startUpdate() {
+  closeUpdateNotes();
+  if (!upd || updating) return;
+  if (running) { toast("Close the game before updating the launcher", true); return; }
+  updating = true; showPage("play"); renderUpdateBanner();
+  await saveNow();
+  const r = await call("installUpdate");
+  if (r && r.ok) { $("#up-text").textContent = t("Updated to {v}. Restarting…", { v: upd.version }); return; }
+  updating = false; renderUpdateBanner();
+  toast((r && r.error) || "The update failed", true);
+}
+$("#up-btn").onclick = () => startUpdate();
+$("#up-notes-btn").onclick = openUpdateNotes;
+$("#up-x").onclick = () => { try { localStorage.setItem("updSkip", upd.version); } catch (e) {} renderUpdateBanner(); toast("Skipped. You can still update from Settings > Launcher."); };
+$("#upd-go").onclick = () => startUpdate();
+$("#upd-later").onclick = closeUpdateNotes;
+$("#upd").onclick = e => { if (e.target.id === "upd") closeUpdateNotes(); };
+window.addEventListener("keydown", e => { if (e.code === "Escape" && updOpen()) closeUpdateNotes(); });
+
 function renderQuick() {
   const c = S.cfg.client, m = winMode(c.window);
   $("#q-display").textContent = m === 2 ? t("Window {size}", { size: WIN[c.window] }) : t(WIN[m]);
   $("#q-res").textContent = RES[c.resolution]?.label || "—";
   $("#q-card").textContent = S.cfg.chipId || t("Not set"); $("#q-card").className = S.cfg.chipId ? "" : "muted";
   const sv = (S.cfg.server || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
-  $("#q-server").textContent = sv || t("Not set"); $("#q-server").className = sv ? "" : "muted";
+  $("#q-server").textContent = !sv ? t("Not set") : S.app.streamer ? t("Hidden (streamer mode)") : sv;
+  $("#q-server").className = sv && !S.app.streamer ? "" : "muted";
   for (const b of $$("#mode-seg button")) b.classList.toggle("on", b.dataset.mode === S.app.mode);
 }
 for (const b of $$("#mode-seg button")) b.onclick = () => { S.app.mode = b.dataset.mode; changed(); };
@@ -858,6 +963,7 @@ async function poll() {
     setChip("#chip-server", st.server, st.server ? "Local server on" : "Local server");
     $("#tagline").textContent = t(st.busy || (running ? "Good luck out there, pilot." : "Ready to deploy."));
     $("#busy").textContent = t(st.busy || "");
+    if (updating && st.update) renderUpdateBanner(st.update);
     $("#mm-status").textContent = /sync/i.test(st.busy || "") ? t(st.busy) : "";
     const np = $("#n2n-pill"); np.textContent = t(n.connected ? "Connected" : n.running ? "Connecting" : "Disconnected"); np.className = "pill" + (n.connected ? "" : " off");
     const sp = $("#server-pill"); sp.textContent = t(st.server ? "Running" : "Stopped"); sp.className = "pill" + (st.server ? "" : " off");
@@ -962,6 +1068,7 @@ function goPage(d) {
 function onPad(b) {
   setPadMode(true);
   if (creditsOpen()) { if (b === "a" || b === "b" || b === "start") closeCredits(); return; }
+  if (updOpen()) { if (b === "a" || b === "start") startUpdate(); else if (b === "b") closeUpdateNotes(); return; }
   const page = curPage();
   // a keyboard key is being captured: B cancels it
   if (listening && !ctrlTab.startsWith("pad")) { if (b === "b") { listening = null; renderKeyboard(); } return; }
@@ -1045,6 +1152,7 @@ requestAnimationFrame(padLoop);
   if (!S.files.client) toast("vsac29_Release.exe not found: put the launcher in the game folder", true);
   refreshDevices();
   poll();
+  if (S.app.autoUpdate !== false && S.app.updatesEnabled !== false) setTimeout(() => checkForUpdate(false), 1500);
 })();
 window.addEventListener("beforeunload", () => { clearTimeout(saveTimer); call("saveState", forHost()); });
 </script>
