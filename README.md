@@ -6,6 +6,7 @@ A modern launcher for EXVSIB that replaces SnowLauncher. It's one exe (`EXVS Lau
 - **Game:** card (chip ID and access code), server, serial, region, opening skip, display per Client/LM, network adapter and fixed IP.
 - **Controls:** keyboard for Client and LM (click a box, then press a key), and controller mapping through DirectInput button capture.
 - **Network:** N2N (`edge.exe`) with a live log, plus the local card server (`Server\Server.exe` or `Server.exe`).
+- **Streamer mode** (Settings > Launcher > Privacy): hides the card server address and the access code in the launcher.
 - **Settings:** background picture, mod sync before playing (`EXVSIB_Mod_Manager.exe --sync`), and install/remove of the bundled EXVS Overlay.
 
 ## Compatibility with SnowLauncher
@@ -40,7 +41,7 @@ git clone --recursive <repo url>
 
 Requirements (Windows, Git Bash):
 - Python 3 with the pip packages `ziglang` (used as the C++ compiler through `py -m ziglang`) and `Pillow`.
-- A built [EXVS Overlay](https://github.com/JoseZavala98/EXVSOverlay), because its DLL is embedded in the exe.
+- A built [EXVS Overlay](https://github.com/furshow/EXVSOverlay), because its DLL is embedded in the exe.
   By default the build looks for it in the sibling folder `../EXVSOverlay`; set `EXVS_OVERLAY_DIR` to use another checkout.
 
 ```bash
@@ -56,6 +57,29 @@ The result is `build/EXVS Launcher.exe`.
 - `--uitest <dir> <out.json>` loads the real UI in a hidden window and reports.
 
 Both test modes are meant for a build without the manifest (the release exe asks for administrator rights, like SnowLauncher).
+
+## Updates
+The launcher updates itself from the releases of this repo (src/update.h). When it opens it asks the GitHub API for the
+latest release (turn this off in **Settings > Launcher > Check for updates at start**, or set EXVS_NO_UPDATE=1).
+If the tag is newer than VERSION in src/main.cpp, the Play page offers it. Update downloads the .exe next to the
+running one, checks its size and SHA-256 (GitHub's asset digest), renames the running exe to EXVS Launcher.old.exe,
+puts the new one in its place and restarts. The new version bundles its EXVS Overlay, so the overlay update follows.
+
+Drafts and pre-releases are ignored.
+
+## Releases
+Branching follows git flow: work goes to `develop` (feature branches from it), a `Release/x.y.z` branch is cut from
+`develop` for each version and merged into `main` (and back into `develop`); fixes to a released version go in
+`hotfix/x.y.z` from `main`.
+
+To publish a version:
+1. If the overlay changed, release EXVS Overlay first (and publish its release), then put its version in
+   `overlay-version.txt`.
+2. On the `Release/x.y.z` branch: set VERSION in src/main.cpp and add a `## [x.y.z]` section to CHANGELOG.md.
+3. Merge it into `main`, then tag main: `git tag vx.y.z && git push origin vx.y.z`.
+4. `.github/workflows/build-release.yml` builds the exe (with the overlay DLL downloaded from its published release)
+   and creates a draft release with `EXVS Launcher.exe` and the CHANGELOG notes. Review it and press **Publish**:
+   from then on the launcher's updater offers it. The release notes are shown in the update window.
 
 ## License
 MIT, see [LICENSE](LICENSE). Third-party code is listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
